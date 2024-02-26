@@ -83,13 +83,13 @@ COMMENT 'Delete a player and associated cards from a game,
 BEGIN
     DECLARE v_gameId INT;
     DECLARE v_userId INT;
-    DECLARE v_userBalance INT;
+    DECLARE v_playerBalance INT;
     DECLARE v_playerExists INT DEFAULT 0;
     DECLARE v_gameExists INT DEFAULT 0;
     DECLARE v_playersCount INT;
 
     -- Check if the player exists
-    SELECT COUNT(*), userId, balance INTO v_playerExists, v_userId, v_userBalance FROM players WHERE id = p_playerId;
+    SELECT COUNT(*), userId, balance INTO v_playerExists, v_userId, v_playerBalance FROM players WHERE id = p_playerId;
     IF v_playerExists = 0 THEN 
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Player not found';
     END IF;
@@ -108,7 +108,7 @@ BEGIN
 
     -- Add the player's balance to the user's balance
     UPDATE users SET 
-        balance = balance + v_userBalance
+        balance = balance + v_playerBalance
     WHERE id = v_userId;
     
 

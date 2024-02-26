@@ -64,6 +64,7 @@ const SquareTable: React.FC<{ gameCode: string }> = ({ gameCode }) => {
 
   const [mainPlayer, setMainPlayer] = useState<Player>();
   const [players, setPlayers] = useState<Player[]>([]);
+  const [balance, setBalance] = useState(0);
 
   const [isReady, setIsReady] = useState<boolean>(false);
   const [canAddCards, setCanAddCards] = useState<boolean>(false);
@@ -154,12 +155,19 @@ const SquareTable: React.FC<{ gameCode: string }> = ({ gameCode }) => {
         renderCards();
 
         for (const player of response.data.game.players) {
+          if (player.userId === decode.userId) {
+            setMainPlayer(player);
+            setBalance(player.bet);
+          }
+
           if (player.outcome === "WINNER") {
             setCanAddCards(false);
             break;
           }
+          
           if (player.userId === decode.userId) {
             setMainPlayer(player);
+            setBalance(player.bet);
             setIsReady(player.ready === 1);
             var isCurrentTurn = player.id === response.data.game.currentTurnId;
             var isBusted = player.outcome === "BUSTED";
@@ -201,7 +209,7 @@ const SquareTable: React.FC<{ gameCode: string }> = ({ gameCode }) => {
     } else {
       document.getElementById("player-bet")!.style.color = "green";
     }
-  }, [mainPlayer?.bet])
+  }, [balance])
 
   function changeTurn(check = false) {
     if (check) {
@@ -522,7 +530,7 @@ const SquareTable: React.FC<{ gameCode: string }> = ({ gameCode }) => {
           justifyContent: "center",
         }}
       >
-        Join Code: {game?.code} | Balance: <div id="player-bet">{mainPlayer?.bet ?? 0}</div>
+        Join Code: {game?.code} | Balance: <div id="player-bet">{balance ?? 0}</div>
       </span>
     </>
   );

@@ -49,7 +49,7 @@ async function getPlayer(req, res, next) {
 
   const player = {
     id: response.data.RESULTS[0].id[0],
-    bet: response.data.RESULTS[0].bet[0],
+    bet: response.data.RESULTS[0].balance[0],
     gameId: response.data.RESULTS[0].gameId[0],
     userId: response.data.RESULTS[0].userId[0],
     name: response.data.RESULTS[0].name[0],
