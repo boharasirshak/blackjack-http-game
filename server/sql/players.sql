@@ -95,7 +95,7 @@ BEGIN
     END IF;
 
     -- Check if the game exists using gameCode and get its ID and playersCount
-    SELECT id, playersCount INTO v_gameId, v_playersCount FROM games WHERE code = p_gameCode LIMIT 1;
+    SELECT id, playersCount INTO v_gameId, v_playersCount FROM games WHERE code = p_gameCode;
     IF v_gameId IS NULL THEN 
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Game not found';
     END IF;
