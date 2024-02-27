@@ -224,7 +224,7 @@ BEGIN
 
     -- Update the player info
     UPDATE players 
-        SET outcome = 'WINNER', balance = balance + (v_bet * (v_playersCount - 1)) 
+        SET outcome = 'WINNER', balance = balance + (v_bet * v_playersCount) 
     WHERE id = p_winnerId;
 
     -- Decrease the balance of other players
