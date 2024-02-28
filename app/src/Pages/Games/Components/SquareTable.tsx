@@ -229,6 +229,12 @@ const SquareTable: React.FC<{ gameCode: string }> = ({ gameCode }) => {
     // do not decrease the timer if there is only one player in the game
     if (game?.playersCount === 1) return;
 
+    // do not decrease the timer if it's not the player's turn
+    if (mainPlayer?.id !== game?.currentTurnId) {
+      setTimer(game?.turnTime!);
+      return;
+    } 
+
     if (!isTimerSet) return;
 
     if (timer === 0) return;
@@ -239,7 +245,7 @@ const SquareTable: React.FC<{ gameCode: string }> = ({ gameCode }) => {
 
     return () => clearInterval(intervalId);
     
-  }, [isTimerSet, game?.playersCount]);
+  }, [isTimerSet, game?.playersCount, game?.currentTurnId, mainPlayer, game]);
 
   useEffect(() => {
     if (timer <= 0 && isTimerSet) {
@@ -311,6 +317,9 @@ const SquareTable: React.FC<{ gameCode: string }> = ({ gameCode }) => {
     if (game?.currentTurnId !== mainPlayer?.id) {
       return alert("Not your turn!");
     }
+    if (game)
+      setTimer(game.turnTime);
+
     const randomCard = cards[Math.floor(Math.random() * cards.length)];
 
     // Make the API call to add the card to the player

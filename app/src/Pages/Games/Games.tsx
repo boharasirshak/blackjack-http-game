@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from "react";
 import axios from "axios";
+import React, { useEffect, useState } from "react";
 
 import { BACKEND_URL } from "../../config";
 import "./Games.css";
@@ -45,15 +45,15 @@ const Games = () => {
   function incrementTime() {
     let timeInput = document.getElementById("move-time") as HTMLInputElement;
     let currentTime = parseInt(timeInput.value.replace(/\D/g, "")); // Remove non-digit characters for safety
-    currentTime = isNaN(currentTime) ? 10 : currentTime; // Default to 10 if NaN
-    currentTime = Math.min(currentTime + 1, 20); // increment by 1 second, maximum of 20 seconds
+    currentTime = isNaN(currentTime) ? 30 : currentTime; // Default to 30 if NaN
+    currentTime = Math.min(currentTime + 1, 60); // increment by 1 second, maximum of 60 seconds
     timeInput.value = currentTime + " секунд";
   }
 
   function decrementTime() {
     let timeInput = document.getElementById("move-time") as HTMLInputElement;
     let currentTime = parseInt(timeInput.value.replace(/\D/g, "")); // Remove non-digit characters for safety
-    currentTime = isNaN(currentTime) ? 10 : currentTime; // Default to 10 if NaN
+    currentTime = isNaN(currentTime) ? 30 : currentTime; // Default to 30 if NaN
     currentTime = Math.max(currentTime - 1, 5); // decrement by 1 second, minimum of 5 seconds
     timeInput.value = currentTime + " секунд";
   }
@@ -166,7 +166,7 @@ const Games = () => {
             <label>Время на ход</label>
             <div className="increment-btns">
               <button onClick={decrementTime}>-</button>
-              <input type="text" id="move-time" value="10 секунд" readOnly />
+              <input type="text" id="move-time" value="30 секунд" readOnly />
               <button onClick={incrementTime}>+</button>
             </div>
           </div>
