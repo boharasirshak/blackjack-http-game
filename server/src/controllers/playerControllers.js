@@ -61,6 +61,7 @@ async function getPlayer(req, res, next) {
     hands: [],
   };
 
+  
   const playerId = response.data.RESULTS[0].id[0];
   response = await axios.get(`http://sql.lavro.ru/call.php`, {
     params: {
@@ -70,6 +71,13 @@ async function getPlayer(req, res, next) {
     },
     timeout: 30000,
   });
+
+  if (response.data.ERROR) {
+    console.log(player)
+    return res.status(404).send({
+      message: response.ERROR,
+    });
+  }
 
   if (response.data.RESULTS[0].id && response.data.RESULTS[0].id.length > 0) {
     for (let i = 0; i < response.data.RESULTS[0].id.length; i++) {
