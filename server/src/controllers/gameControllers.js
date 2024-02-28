@@ -220,12 +220,15 @@ async function getAGame(req, res, next) {
   const winner = findWinner();
   // We only update the game winner if there is a winner and the winner is not the current winner
   if (winner && data.game.winnerId !== winner.id) {
+    console.log(data.game.bet * data.game.playersCount, data.game.bet)
     response = await axios.get(`http://sql.lavro.ru/call.php`, {
       params: {
         db: config.dbName,
         pname: "updateGameWinner",
         p1: gameCode,
         p2: winner.id,
+        p3: (data.game.bet * data.game.playersCount),
+        p4: data.game.bet
       },
       timeout: 30000,
     });
