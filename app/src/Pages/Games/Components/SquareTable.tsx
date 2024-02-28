@@ -70,6 +70,9 @@ const SquareTable: React.FC<{ gameCode: string }> = ({ gameCode }) => {
   const [canAddCards, setCanAddCards] = useState<boolean>(false);
   const [canSkipTurn, setCanSkipTurn] = useState<boolean>(false);
 
+  const [isTimerSet, setIsTimerSet] = useState<boolean>(false);
+  const [timer, setTimer] = useState<number>(0);
+
   const token = localStorage.getItem("token");
   const decode = jwtDecode<TokenData>(token!);
 
@@ -117,6 +120,7 @@ const SquareTable: React.FC<{ gameCode: string }> = ({ gameCode }) => {
           },
         });
         setMainPlayer(response.data);
+
       } catch (error) {
         console.log(error);
         const err = error as AxiosError<IResponseError>;
@@ -134,6 +138,8 @@ const SquareTable: React.FC<{ gameCode: string }> = ({ gameCode }) => {
   }, []);
 
   useEffect(() => {
+    let _istimerSet = isTimerSet;
+
     async function getGame() {
       try {
         const response = await axios.get<IGameResponse>(
@@ -158,6 +164,12 @@ const SquareTable: React.FC<{ gameCode: string }> = ({ gameCode }) => {
           if (player.userId === decode.userId) {
             setMainPlayer(player);
             setBalance(player.bet);
+
+            if (!_istimerSet) {
+              setIsTimerSet(true);
+              _istimerSet = true;
+              setTimer(response.data.game.turnTime);
+            }
           }
 
           if (player.outcome === "WINNER") {
@@ -188,6 +200,7 @@ const SquareTable: React.FC<{ gameCode: string }> = ({ gameCode }) => {
             else setCanSkipTurn(false);
           }
         }
+        return response.data.game;
       } catch (err) {
         console.log(err);
         alert("Invalid game code");
@@ -195,11 +208,11 @@ const SquareTable: React.FC<{ gameCode: string }> = ({ gameCode }) => {
       }
     }
 
-    getGame();
-
     const intervalId = setInterval(getGame, 2000);
 
-    return () => clearInterval(intervalId);
+    return () => { 
+      clearInterval(intervalId); 
+    }
   }, [gameCode, token, decode.userId]);
 
   useEffect(() => {
@@ -209,7 +222,34 @@ const SquareTable: React.FC<{ gameCode: string }> = ({ gameCode }) => {
     } else {
       document.getElementById("player-bet")!.style.color = "green";
     }
-  }, [balance])
+  }, [balance]);
+
+  useEffect(() => {
+
+    // do not decrease the timer if there is only one player in the game
+    if (game?.playersCount === 1) return;
+
+    if (!isTimerSet) return;
+
+    if (timer === 0) return;
+
+    const intervalId = setInterval(() => {
+      setTimer((prevTimer) => prevTimer - 1);
+    }, 1000);
+
+    return () => clearInterval(intervalId);
+    
+  }, [isTimerSet, game?.playersCount]);
+
+  useEffect(() => {
+    if (timer <= 0 && isTimerSet) {
+      if (mainPlayer?.id !== game?.winnerId) {
+        changeStay(true);
+        setIsTimerSet(false);
+        setTimer(0);
+      }
+    }
+  }, [timer, game, mainPlayer]); 
 
   function changeTurn(check = false) {
     if (check) {
@@ -464,6 +504,9 @@ const SquareTable: React.FC<{ gameCode: string }> = ({ gameCode }) => {
       )
       .then(() => {
         alert("Game restarted");
+        if (game) {
+          setTimer(game.turnTime);
+        }
       })
       .catch((err) => {
         console.log(err);
@@ -530,7 +573,7 @@ const SquareTable: React.FC<{ gameCode: string }> = ({ gameCode }) => {
           justifyContent: "center",
         }}
       >
-        Join Code: {game?.code} | Balance: <div id="player-bet">{balance ?? 0}</div>
+        Join Code: {game?.code} | Balance: <div id="player-bet">{balance ?? 0}</div> {" "} | Time Left: {timer} sec
       </span>
     </>
   );
