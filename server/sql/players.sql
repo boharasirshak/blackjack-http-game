@@ -232,19 +232,23 @@ BEGIN
     END IF;
 
     -- Get the game variables
-    SELECT bet, playersCount INTO v_gameBet, v_playersCount FROM game WHERE id = p_gameId;
+    SELECT bet, playersCount INTO v_gameBet, v_playersCount FROM games WHERE id = p_gameId;
 
     -- Get the player
     SELECT balance INTO v_playerBalance FROM players WHERE id = p_playerId;
 
     IF p_outcome = 'WINNER' THEN
         UPDATE players SET 
-            balance = balance + (v_gameBet * v_playersCount), outcome = 'WINNER'
+            balance = balance + (v_gameBet * v_playersCount)
         WHERE id = p_playerId;
+
+        UPDATE players SET
+            balance = balance - v_gameBet
+        WHERE id != p_playerId AND gameId = p_gameId;
     
     ELSEIF p_outcome = 'BUSTED' THEN
         UPDATE players SET
-            balance = balance - v_gameBet, outcome = 'BUSTED'
+            balance = balance - v_gameBet
         WHERE id = p_playerId;
 
     END IF;
