@@ -210,17 +210,43 @@ END;
 
 
 DROP PROCEDURE IF EXISTS updatePlayerOutcome;
-CREATE PROCEDURE updatePlayerOutcome(IN p_playerId INT, IN p_outcome VARCHAR(20))
-COMMENT 'Update a player outcome in a game 
+CREATE PROCEDURE updatePlayerOutcome(
+    IN p_playerId INT, 
+    IN p_outcome VARCHAR(20),
+    IN p_gameId INT
+)
+COMMENT 'Update a player outcome in a game and also set its balance,
         p_playerId: Player ID, 
         p_outcome: The outcome of the player'
 BEGIN
     DECLARE v_playerExists INT DEFAULT 0;
+    DECLARE v_gameBet INT DEFAULT 0;
+    DECLARE v_playersCount INT DEFAULT 0;
+    DECLARE v_playerBalance INT DEFAULT 0;
+    DECLARE v_deltaBalance INT DEFAULT 0;
 
     -- Check if the player exists
     SELECT COUNT(*) INTO v_playerExists FROM players WHERE id = p_playerId;
     IF v_playerExists = 0 THEN 
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Player not found';
+    END IF;
+
+    -- Get the game variables
+    SELECT bet, playersCount INTO v_gameBet, v_playersCount FROM game WHERE id = p_gameId;
+
+    -- Get the player
+    SELECT balance INTO v_playerBalance FROM players WHERE id = p_playerId;
+
+    IF p_outcome = 'WINNER' THEN
+        UPDATE players SET 
+            balance = balance + (v_gameBet * v_playersCount), outcome = 'WINNER'
+        WHERE id = p_playerId;
+    
+    ELSEIF p_outcome = 'BUSTED' THEN
+        UPDATE players SET
+            balance = balance - v_gameBet, outcome = 'BUSTED'
+        WHERE id = p_playerId;
+
     END IF;
 
     -- Update the player's outcome

@@ -227,8 +227,6 @@ async function getAGame(req, res, next) {
         pname: "updateGameWinner",
         p1: gameCode,
         p2: winner.id,
-        p3: (data.game.bet * data.game.playersCount),
-        p4: data.game.bet
       },
       timeout: 30000,
     });
@@ -482,7 +480,8 @@ async function changePlayerTurn(req, res, next) {
           db: config.dbName,
           pname: "updatePlayerOutcome",
           p1: player.id,
-          p2: outcome
+          p2: outcome,
+          p3: game.id
         },
         timeout: 30000,
       });

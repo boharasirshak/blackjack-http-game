@@ -192,15 +192,11 @@ END;
 DROP PROCEDURE IF EXISTS updateGameWinner;
 CREATE PROCEDURE updateGameWinner(
     IN p_gameCode VARCHAR(20), 
-    IN p_winnerId INT,
-    IN p_winnerBalance INT,
-    IN p_subtractBalance INT
+    IN p_winnerId INT
 )
 COMMENT 'Updates the game with the winner ID and changes the player outcome to "WINNER",
         p_gameCode: The game code, 
-        p_winnerId: The player ID of the winner,
-        p_winnerBalance: The winners balance to add,
-        p_subtractBalance: The balance to subtract from losers.'
+        p_winnerId: The player ID of the winner.'
 BEGIN
     DECLARE v_gameExists INT DEFAULT 0;
     DECLARE v_playerExists INT DEFAULT 0;
@@ -227,14 +223,7 @@ BEGIN
     END IF;
 
     -- Update the player info
-    UPDATE players 
-        SET outcome = 'WINNER', balance = balance + p_winnerBalance
-    WHERE id = p_winnerId;
-
-    -- Decrease the balance of other players
-    UPDATE players 
-        SET balance = balance - p_subtractBalance
-    WHERE gameId = v_gameId AND id != p_winnerId;
+    UPDATE players SET outcome = 'WINNER' WHERE id = p_winnerId;
 
     -- Update the game info
     UPDATE games SET winnerId = p_winnerId WHERE code = p_gameCode;
