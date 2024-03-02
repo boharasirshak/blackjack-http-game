@@ -17,7 +17,8 @@ CREATE TABLE IF NOT EXISTS games (
   code VARCHAR(20) NOT NULL,
   bet INT NOT NULL,
   turnTime INT NOT NULL,
-  playersCount INT NOT NULL DEFAULT 1
+  playersCount INT NOT NULL DEFAULT 1,
+  playersSequence VARCHAR(255) NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS players (
