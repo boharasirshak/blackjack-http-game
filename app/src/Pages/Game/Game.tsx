@@ -1,65 +1,13 @@
 import axios, { AxiosError } from "axios";
 import { jwtDecode } from "jwt-decode";
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-
-import { BACKEND_URL } from "../../config";
-import "./Game.css";
-
 import SquareTable from "../../components/Table/SquareTable";
+import { BACKEND_URL } from "../../config";
+import type { Game, Player, TokenData } from "../../types";
+import type { IGameResponse, IResponseError } from "../../types/response";
 
-interface TokenData {
-  name: string;
-  email: string;
-  userId: number;
-}
-
-interface Card {
-  id: number;
-  name: string;
-  value: string;
-  suit: string;
-}
-
-interface Hands {
-  playerId: number;
-  gameCode: string;
-  cardId: number;
-  card: Card;
-}
-
-interface Player {
-  id: number;
-  bet: number;
-  gameId: number;
-  userId: number;
-  ready: number;
-  state: string;
-  outcome: string;
-  score: number;
-  hands: Hands[];
-}
-
-interface Game {
-  id: number;
-  code: string;
-  bet: number;
-  playersCount: number;
-  state: string;
-  turnTime: number;
-  winnerId: number;
-  currentTurnId: number;
-  players: Player[];
-}
-
-interface IGameResponse {
-  game: Game;
-}
-
-interface IGameError {
-  message?: string;
-  error?: string;
-}
+import "./Game.css";
 
 const values = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13];
 const suits = ["spades", "hearts", "clubs", "diamonds"];
@@ -68,11 +16,10 @@ function rand<T>(arr: T[]) {
 }
 
 const Game = () => {
-  // for future use
   const token = localStorage.getItem("token");
   const decode = jwtDecode<TokenData>(token!);
-  // const [game, setGame] = useState<any>(null);
-  // const [user, setUser] = useState<IUserPlayer>();
+  const [game, setGame] = useState<Game>();
+  const [player, setPlayer] = useState<Player>();
 
   const { code } = useParams();
   if (!code) {
@@ -80,73 +27,52 @@ const Game = () => {
   }
 
   useEffect(() => {
-    const getAndJoinGame = async () => {
+    const init = async () => {
       try {
-        const res = await axios.get<IGameResponse>(
-          `${BACKEND_URL}/games/${code}`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-              'ngrok-skip-browser-warning': 'true'
-            },
-          }
-        );
-        if (
-          res.data.game.players.length > 4 ||
-          res.data.game.playersCount > 4
-        ) {
-          alert("Game is full!");
-          window.location.href = "/dashboard";
-        }
-
-        if (res.data.game.state === "RUNNING") {
-          alert(
-            "This is a running game, please join once it is finished or idle"
-          );
-          window.location.href = "/dashboard";
-        }
-
-        const player = res.data.game.players.find(
-          (p) => p.userId === decode.userId
-        );
+        const _game = await getAGame(code as string, token!);
+        const _player = _game.players.find((p) => p.userId === decode.userId);
+        setGame(_game);
+        setPlayer(_player);
 
         // This is not a player in game, so join him.
-        if (!player) {
-          if (res.data.game.players.length > 4 || res.data.game.playersCount > 4) {
+        if (!_player) {
+          // Check if game is full before creating a new player
+          if (_game.players.length > 4 || _game.playersCount > 4) {
             alert("Game is full!");
             window.location.href = "/dashboard";
           }
-          try {
-            await axios.post<Player>(
-              `${BACKEND_URL}/games/${code}`,
-              {
-                userId: decode.userId,
-                gameCode: code,
-              },
-              {
-                headers: {
-                  Authorization: `Bearer ${token}`,
-                  'ngrok-skip-browser-warning': 'true'
-                },
-              }
-            );
-          } catch (err) {
-            
-          }
+
+          await joinGame(code as string, token!, decode.userId);
         }
       } catch (error) {
-        const err = error as AxiosError<IGameError>;
+        const err = error as AxiosError<IResponseError>;
         console.log(err);
         alert(
           err.response?.data.message ||
             err.response?.data.error ||
-            "Invalid game code"
+            "Error joining game"
         );
         window.location.href = "/dashboard";
       }
     };
-    getAndJoinGame();
+
+    init();
   }, [code, decode]);
+
+  useEffect(() => {
+    const event = new EventSource(`${BACKEND_URL}/games/${code}`);
+
+    event.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      setGame(data);
+    };
+
+    return () => {
+      event.close();
+    };
+  });
+
+
 
   return (
     <div>
@@ -154,5 +80,50 @@ const Game = () => {
     </div>
   );
 };
+
+const getAGame = async (code: string, token: string) => {
+  const res = await axios.get<IGameResponse>(
+    `${BACKEND_URL}/games/${code}`,
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'ngrok-skip-browser-warning': 'true'
+      },
+    }
+  );
+  if (
+    res.data.game.players.length > 4 ||
+    res.data.game.playersCount > 4
+  ) {
+    alert("Game is full!");
+    window.location.href = "/dashboard";
+  }
+
+  if (res.data.game.state === "RUNNING") {
+    alert(
+      "This is a running game, please join once it is finished or idle"
+    );
+    window.location.href = "/dashboard";
+  }
+
+  return res.data.game;
+}
+
+const joinGame = async (code: string, token: string, userId: number) => {
+  const res = await axios.post<Player>(
+    `${BACKEND_URL}/games/${code}`,
+    {
+      userId: userId,
+      gameCode: code,
+    },
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'ngrok-skip-browser-warning': 'true'
+      },
+    }
+  );
+  return res.status === 201 || res.status === 200;
+}
 
 export default Game;
