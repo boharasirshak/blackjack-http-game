@@ -1,12 +1,12 @@
-import React, { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
-import { jwtDecode } from "jwt-decode";
 import axios, { AxiosError } from "axios";
+import { jwtDecode } from "jwt-decode";
+import React, { useEffect } from "react";
+import { useParams } from "react-router-dom";
 
-import "./Game.css";
 import { BACKEND_URL } from "../../config";
+import "./Game.css";
 
-import SquareTable from "../Games/Components/SquareTable";
+import SquareTable from "../../components/Table/SquareTable";
 
 interface TokenData {
   name: string;

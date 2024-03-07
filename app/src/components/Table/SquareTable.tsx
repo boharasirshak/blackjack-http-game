@@ -1,8 +1,8 @@
 import axios, { AxiosError } from "axios";
 import { jwtDecode } from "jwt-decode";
 import React, { useEffect, useState } from "react";
-import { BACKEND_URL } from "../../../config";
-import Card from "./Card";
+import { BACKEND_URL } from "../../config";
+import Card from "../Card/Card";
 import "./SquareTable.css";
 
 interface Card {
@@ -240,7 +240,7 @@ const SquareTable: React.FC<{ gameCode: string }> = ({ gameCode }) => {
     if (timer === 0) return;
 
     const intervalId = setInterval(() => {
-      setTimer((prevTimer) => prevTimer - 1);
+      setTimer((prevTimer: number) => prevTimer - 1);
     }, 1000);
 
     return () => clearInterval(intervalId);
@@ -279,7 +279,7 @@ const SquareTable: React.FC<{ gameCode: string }> = ({ gameCode }) => {
           },
         }
       )
-      .then((_) => {
+      .then(() => {
         console.log("Turn skipped");
       })
       .catch((err) => {
@@ -304,7 +304,7 @@ const SquareTable: React.FC<{ gameCode: string }> = ({ gameCode }) => {
           },
         }
       )
-      .then((_) => {
+      .then(() => {
         console.log("Player Stayed");
         changeTurn();
       })
@@ -336,7 +336,7 @@ const SquareTable: React.FC<{ gameCode: string }> = ({ gameCode }) => {
           "ngrok-skip-browser-warning": "true",
         },
       })
-      .then((res) => {
+      .then(() => {
         // change the turn
         changeTurn();
       })
