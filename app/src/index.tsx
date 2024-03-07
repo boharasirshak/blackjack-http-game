@@ -2,13 +2,13 @@ import React from "react";
 import { createRoot } from "react-dom/client";
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 
-import ErrorPage from "./Pages/ErrorPage";
-import Login from "./Pages/Login/Login";
-import Signup from "./Pages/Signup/Signup";
-import Dashboard from "./Pages/Dashboard/Dashboard";
-import PrivateRoute from "./Pages/PrivateRoute";
-import Games from "./Pages/Games/Games";
-import Game from "./Pages/Game/Game"; // bruh, wtf is this naming convention I just created
+import Dashboard from "./pages/Dashboard/Dashboard";
+import ErrorPage from "./pages/ErrorPage";
+import Game from "./pages/Game"; // bruh, wtf is this naming convention I just created
+import Games from "./pages/Games/Games";
+import Login from "./pages/Login/Login";
+import PrivateRoute from "./pages/PrivateRoute";
+import Signup from "./pages/Signup/Signup";
 
 import App from "./App";
 

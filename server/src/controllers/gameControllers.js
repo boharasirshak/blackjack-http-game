@@ -3,6 +3,8 @@ const axios = require("axios");
 const config = require("../config");
 const { genRandomString } = require("../utils/generators");
 
+const players = [];
+
 async function getGames(req, res, next) {
   const token = req.token; // from the middleware
   const data = jwt.decode(token, { json: true });
@@ -243,6 +245,43 @@ async function getAGame(req, res, next) {
   return res.send(data);
 }
 
+async function gameEvents(req, res, next) {
+  const gameId = req.params.id;
+  if (!gameId) {
+    return res.status(400).send({
+      message: "gameId is required!",
+    });
+  }
+  res.flushHeaders();
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Connection', 'keep-alive');
+
+  players.push({
+    id: Date.now(),
+    gameId,
+    res
+  });
+
+  const data = {
+    message: "Connected to the game!",
+  }
+  res.write(`data: ${JSON.stringify(data)}\n\n`);
+
+  req.on('close', () => {
+    players = players.filter(player => player.id !== playerId);
+  });
+}
+
+function notifyPlayers(gameId, data) {
+  players.forEach(player => {
+    if (player.gameId === gameId) {
+      player.res.write(`data: ${JSON.stringify(data)}\n\n`);
+    }
+  });
+}
+
+
 async function createGame(req, res, next) {
   const { turnTime, bet } = req.body;
   if (!turnTime || !bet) {
@@ -293,6 +332,16 @@ async function createGame(req, res, next) {
       message: "Error creating game!",
     });
   }
+
+  const eventData = { event: 'CREATE_GAME', details: {
+    gameCode,
+    bet,
+    turnTime,
+    creatorId: userId,
+    gameId: response.data.RESULTS[1]["v_gameId"][0],
+    playerId: response.data.RESULTS[1]["v_playerId"][0]
+  }};
+  sendEventsToGame(gameId, eventData);
 
   return res.send({
     message: "Game created!",
@@ -573,3 +622,4 @@ module.exports.createGamePlayerCard = createGamePlayerCard;
 module.exports.joinGame = joinGame;
 module.exports.changePlayerTurn = changePlayerTurn;
 module.exports.restartGame = restartGame;
+module.exports.gameEvents = gameEvents;

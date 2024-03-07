@@ -6,7 +6,8 @@ const {
     createGamePlayerCard,
     joinGame,
     changePlayerTurn,
-    restartGame
+    restartGame,
+    gameEvents
 } = require("../controllers/gameControllers");
 const verifyToken = require('../middlewares/tokenMiddleware');
 
@@ -19,6 +20,7 @@ router.put('/changeTurn', verifyToken, changePlayerTurn);
 router.post('/restart', verifyToken, restartGame);
 
 // probably the most important route
+router.post('/events', verifyToken, gameEvents);
 router.get('/:code', verifyToken, getAGame);
 router.post('/:code', verifyToken, joinGame);
 

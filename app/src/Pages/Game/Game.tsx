@@ -57,10 +57,8 @@ const Game = () => {
     };
 
     init();
-  }, [code, decode]);
 
-  useEffect(() => {
-    const event = new EventSource(`${BACKEND_URL}/games/${code}`);
+    const event = new EventSource(`${BACKEND_URL}/games/${game?.id}`);
 
     event.onmessage = (event) => {
       const data = JSON.parse(event.data);
@@ -70,9 +68,8 @@ const Game = () => {
     return () => {
       event.close();
     };
-  });
-
-
+    
+  }, [code, decode]);
 
   return (
     <div>
