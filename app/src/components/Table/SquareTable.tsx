@@ -54,10 +54,6 @@ interface IResponseError {
   error?: string;
 }
 
-// REMAINING:
-// 1. Game logic for black jack
-// 3. Game states and player state: ready, playing, waiting, etc.
-
 const SquareTable: React.FC<{ gameCode: string }> = ({ gameCode }) => {
   const [cards, setCards] = useState<Card[]>([]);
   const [game, setGame] = useState<Game>();
