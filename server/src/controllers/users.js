@@ -20,7 +20,7 @@ async function login(req, res) {
     timeout: 60000,
   });
 
-  if (response.data.RESULTS[0].error) {
+  if (response.data.ERROR) {
     return res.status(401).send({
       message: "Invalid email or password",
     });
@@ -29,7 +29,7 @@ async function login(req, res) {
   if (response.data.RESULTS[0].id) {
     return res.send({
       message: "Successfully logged in",
-      token: response.data.RESULTS[0].sessionToken[0],
+      token: response.data.RESULTS[0].token[0],
     });
   }
 }
@@ -52,7 +52,7 @@ async function signup(req, res) {
     timeout: 60000,
   });
 
-  if (response.data.RESULTS[0].error) {
+  if (response.data.ERROR) {
     return res.status(401).send({
       message: "User already exists",
     });
@@ -87,9 +87,11 @@ async function signup(req, res) {
       timeout: 30000,
     });
 
+    console.log(response.data);
+
     if (
-      !response.data.RESULTS[0].id ||
-      !response.data.RESULTS[0].id.length === 0
+      !response.data.RESULTS[0].token ||
+      !response.data.RESULTS[0].token.length === 0
     ) {
       return res.status(500).send({
         message: "Error updating token",
