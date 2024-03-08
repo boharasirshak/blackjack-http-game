@@ -2,9 +2,11 @@ import { createRoot } from "react-dom/client";
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import './index.css';
 
+import Dashboard from "./pages/Dashboard";
+import ErrorPage from "./pages/ErrorPage";
+import Games from "./pages/Games";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
-import ErrorPage from "./pages/ErrorPage";
 
 import App from "./App";
 
@@ -26,6 +28,16 @@ const router = createBrowserRouter([
   {
     path: "/signup",
     element: <Signup />,
+    errorElement: <ErrorPage />,
+  },
+  {
+    path: "/dashboard",
+    element: <Dashboard />,
+    errorElement: <ErrorPage />,
+  },
+  {
+    path: "/games",
+    element: <Games />,
     errorElement: <ErrorPage />,
   },
 ]);
