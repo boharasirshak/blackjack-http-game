@@ -7,7 +7,9 @@ COMMENT 'Login with username and password,
 BEGIN
     DECLARE v_user_id INT DEFAULT (SELECT id FROM users WHERE username = p_username AND password = p_password);
     IF v_user_id IS NOT NULL THEN
-        SELECT * FROM users WHERE id = v_user_id;
+        SELECT * FROM users
+        LEFT JOIN tokens ON users.id = tokens.user_id
+        WHERE id = v_user_id;
     ELSE
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Incorrect username or password';
     END IF;
@@ -50,7 +52,7 @@ BEGIN
     ELSE
         INSERT INTO tokens (token, user_id) VALUES (p_token, p_user_id);
     END IF;
-    
+    SELECT * FROM tokens WHERE user_id = p_user_id;
 END;
 
 
