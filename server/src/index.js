@@ -4,12 +4,14 @@ const cors = require('cors');
 const axios = require('axios');
 
 const userRouter = require('./routes/users');
+const gameRouter = require('./routes/games');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
 app.use('/users', userRouter);
+app.use('/games', gameRouter);
 
 app.get('/', (req, res) => {
   res.send({
