@@ -23,16 +23,11 @@ async function getGames(req, res, next) {
       id: response.data.RESULTS[0].id[i],
       code: response.data.RESULTS[0].code[i],
       bet: response.data.RESULTS[0].bet[i],
-      turnTime: response.data.RESULTS[0].turnTime[i],
-      creatorId: response.data.RESULTS[0].creatorId[i],
-      playersCount: response.data.RESULTS[0].playersCount[i],
-      state: response.data.RESULTS[0].state[i],
-      previousTurns: response.data.RESULTS[0].previousTurns[i],
-      currentTurnId: response.data.RESULTS[0].currentTurnId[i],
-      winnerId: response.data.RESULTS[0].winnerId[i],
+      turn_time: response.data.RESULTS[0].turn_time[i],
+      players_limit: response.data.RESULTS[0].players_limit[i]
     });
   }
-
+  
   return res.send(games);
 
   // Since we are not using the user's id to get their games, we can comment out the following code, FOR NOW
@@ -70,7 +65,6 @@ async function getGames(req, res, next) {
   //     games.push(game);
   // }
 
-  // return res.send(games);
 }
 
 async function createGame(req, res, next) {
