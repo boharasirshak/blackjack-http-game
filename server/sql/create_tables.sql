@@ -22,10 +22,10 @@ CREATE TABLE IF NOT EXISTS games (
 
 CREATE TABLE IF NOT EXISTS players (
   id INT AUTO_INCREMENT PRIMARY KEY,
-  stay BOOLEAN NOT NULL DEFAULT 0,
   sequence_number INT NOT NULL,
   user_id INT NOT NULL,
   game_id INT NOT NULL,
+  stay BOOLEAN NOT NULL DEFAULT 0,
   FOREIGN KEY (user_id) REFERENCES users(id),
   FOREIGN KEY (game_id) REFERENCES games(id)
 );
