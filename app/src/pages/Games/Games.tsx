@@ -62,6 +62,7 @@ const Games = () => {
         {
           turnTime: seconds,
           bet: betAmount,
+          playersLimit: players,
         },
         {
           headers: {
@@ -98,14 +99,14 @@ const Games = () => {
                 r="57.5"
                 fill="white"
                 stroke="#F4F7FC"
-                stroke-width="16"
+                strokeWidth="16"
               />
               <path
                 d="M73.5 39L47 65.5L73.5 92"
                 stroke="#0D4CD3"
-                stroke-width="8"
-                stroke-linecap="round"
-                stroke-linejoin="round"
+                strokeWidth="8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
               />
             </svg>
           </div>
