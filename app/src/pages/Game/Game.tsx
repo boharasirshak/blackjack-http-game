@@ -39,7 +39,6 @@ const Game = () => {
           (p) => p.userId === decode.userId
         );
 
-        // If player is in game, set the player state
         if (exists) {
           setPlayer(exists);
           return;
@@ -80,11 +79,11 @@ const Game = () => {
       }
     };
     getAndJoinGame();
-  }, [code, decode]);
+  }, []);
 
   return (
     <div>
-      <Table game={game!} player={player!} />
+      {game !== undefined && player !== undefined ? <Table game={game!} mainPlayer={player!} /> : ""}
     </div>
   );
 };
