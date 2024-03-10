@@ -22,9 +22,8 @@ const PlayArea = ({game, mainPlayer}: PlayAreaProps) => {
 
     while (i < game.players.length && i < 4) {
       const player = game.players[i];
-      console.log(player);
 
-      if (player.id === mainPlayer?.id) {
+      if (player.id === mainPlayer.id) {
         area.push(
           <>
             <div className="bottom player-info">
@@ -37,7 +36,7 @@ const PlayArea = ({game, mainPlayer}: PlayAreaProps) => {
               </span>
 
               <div className="cards-container">
-                {player?.cards.map((card) => (
+                {player.cards.map((card) => (
                   <Card
                     key={card.playerId}
                     value={card.value}
@@ -65,7 +64,7 @@ const PlayArea = ({game, mainPlayer}: PlayAreaProps) => {
             </span>
 
             <div className="cards-container">
-              {player?.cards.map((card) => (
+              {player.cards.map((card) => (
                 <Card
                   key={card.playerId}
                   value={card.value}
