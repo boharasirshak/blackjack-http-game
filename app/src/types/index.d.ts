@@ -10,10 +10,18 @@ export interface ICard {
   suit: string;
 }
 
-export interface IPlayerHands {
+export interface IPlayerCards {
   playerId: number;
-  cardId: number;
-  card: ICard;
+  value: string;
+  suite: string;
+}
+
+export interface ICurrentPlayer {
+  id: number;
+  startTurn: number;
+  playerId: number;
+  sequenceNumber: number;
+  userId: number;
 }
 
 export interface IPlayer {
@@ -22,7 +30,7 @@ export interface IPlayer {
   userId: number;
   stay: boolean;
   sequenceNumber: number;
-  hands: IPlayerHands[];
+  cards: IPlayerCards[];
 }
 
 export interface IGame {
@@ -32,6 +40,7 @@ export interface IGame {
   turnTime: number;
   playersLimit: number;
   players: IPlayer[];
+  currentPlayer?: ICurrentPlayer;
 }
 
 
