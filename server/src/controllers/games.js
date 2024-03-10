@@ -23,8 +23,8 @@ async function getGames(req, res, next) {
       id: response.data.RESULTS[0].id[i],
       code: response.data.RESULTS[0].code[i],
       bet: response.data.RESULTS[0].bet[i],
-      turn_time: response.data.RESULTS[0].turn_time[i],
-      players_limit: response.data.RESULTS[0].players_limit[i]
+      turnTime: response.data.RESULTS[0].turn_time[i],
+      playersLimit: response.data.RESULTS[0].players_limit[i]
     });
   }
   
@@ -64,6 +64,146 @@ async function getGames(req, res, next) {
   //     const game = getGameStmt.get(player.gameId);
   //     games.push(game);
   // }
+
+}
+
+async function getAGame(req, res, next) {
+  const gameCode = req.params.code || req.body.code || req.query.code;
+  if (!gameCode) {
+    return res.status(400).send({
+      message: "gameCode is a required field!",
+    });
+  }
+
+  let game = {
+    players: [],
+    currentPlayer: null
+  };
+
+  var response = await axios.get(`http://sql.lavro.ru/call.php`, {
+    params: {
+      db: config.dbName,
+      pname: "getGameData",
+      p1: gameCode,
+    },
+    timeout: 30000,
+  });
+
+  if (response.data.ERROR) {
+    return res.status(404).send({
+      message: response.data.ERROR,
+    });
+  }
+
+  if (
+    !response.data.RESULTS[0].id ||
+    response.data.RESULTS[0].id.length === 0
+  ) {
+    return res.status(404).send({
+      message: "Game not found!",
+    });
+  }
+
+  game = {
+    id: response.data.RESULTS[0].id[0],
+    code: response.data.RESULTS[0].code[0],
+    bet: response.data.RESULTS[0].bet[0],
+    turnTime: response.data.RESULTS[0].turn_time[0],
+    playersLimit: response.data.RESULTS[0].players_limit[0],
+    players: []
+  }
+
+  const playerData = response.data.RESULTS[1];
+  for (var i = 0; i < playerData.id.length; i++) {
+    game.players.push({
+      id: playerData.id[i],
+      sequenceNumber: playerData.sequence_number[i],
+      userId: playerData.user_id[i],
+      gameId: playerData.game_id[i],
+      stay: playerData.stay[i],
+      cards: []
+    });
+  }
+
+  const cardsData = response.data.RESULTS[2];
+  for (var i = 0; i < cardsData.player_id.length; i++) {
+    for (let j = 0; j < game.players.length; j++) {
+      let player = game.players[j];
+      if (player.id === cardsData.player_id[i]) {
+        if (!player.cards) {
+          player.cards = [];
+        }
+        player.cards.push({
+          value: cardsData.value[i],
+          suit: cardsData.suit[i],
+        });
+      }
+    }
+  }
+
+  const currentPlayerData = response.data.RESULTS[3];
+  if (currentPlayerData.current_player_id.length > 0) {
+    game.currentPlayer = {
+      id: currentPlayerData.current_player_id[0],
+      sequenceNumber: currentPlayerData.sequence_number[0],
+      startTime: currentPlayerData.start_time[0],
+      playerId: currentPlayerData.player_id[0],
+      userId: currentPlayerData.user_id[0],
+    }
+  }
+
+  return res.send(game);
+}
+
+async function joinGame(req, res, next) {
+  console.log(req.body);
+  console.log(req.params);
+  const gameCode = req.body.code || req.params.code || req.query.code;
+  if (!gameCode) {
+    return res.status(400).send({
+      message: "gameCode is a required field!",
+    });
+  }
+
+  const token = req.token; // from the middleware
+  const data = jwt.decode(token, { json: true });
+  const userId = data?.userId;
+
+  if (!userId) {
+    return res.status(401).send({
+      message: "Invalid token!",
+    });
+  }
+
+  var response = await axios.get(`http://sql.lavro.ru/call.php`, {
+    params: {
+      db: config.dbName,
+      pname: "joinGame",
+      p1: gameCode,
+      p2: userId,
+    },
+    timeout: 30000,
+  });
+
+  if (response.data.ERROR) {
+    return res.status(404).send({
+      message: response.data.ERROR,
+    });
+  }
+
+  if (
+    !response.data.RESULTS[0]["v_player_id"] ||
+    response.data.RESULTS[0]["v_player_id"].length === 0
+  ) {
+    return res.status(500).send({
+      message: "Error joining game!",
+    });
+  }
+
+  return res.send({
+    message: "Game joined!",
+    playerId: response.data.RESULTS[0]["v_player_id"][0] || 1,
+  });
 
 }
 
@@ -129,3 +269,5 @@ async function createGame(req, res, next) {
 
 module.exports.getGames = getGames;
 module.exports.createGame = createGame;
+module.exports.getAGame = getAGame;
+module.exports.joinGame = joinGame;
