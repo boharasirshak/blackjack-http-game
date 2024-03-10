@@ -135,7 +135,7 @@ async function getAGame(req, res, next) {
         }
         player.cards.push({
           value: cardsData.value[i],
-          suit: cardsData.suit[i],
+          suite: cardsData.suit[i],
         });
       }
     }
@@ -267,7 +267,38 @@ async function createGame(req, res, next) {
   });
 }
 
+async function addGamePlayerCard(req, res, next) {
+  const { gameCode, playerId } = req.body;
+  if (!playerId || !gameCode ) {
+    return res.status(400).send({
+      message: "playerId and gameCode are required!",
+    });
+  }
+
+  var response = await axios.get(`http://sql.lavro.ru/call.php`, {
+    params: {
+      db: config.dbName,
+      pname: "addRandomGamePlayerCard",
+      p1: gameCode,
+      p2: playerId
+    },
+    timeout: 30000,
+  });
+
+  if (response.data.ERROR) {
+    return res.status(404).send({
+      message: response.data.ERROR,
+    });
+  }
+
+  return res.send({
+    message: "Card added!",
+  });
+
+}
+
 module.exports.getGames = getGames;
 module.exports.createGame = createGame;
 module.exports.getAGame = getAGame;
 module.exports.joinGame = joinGame;
+module.exports.addGamePlayerCard = addGamePlayerCard;
