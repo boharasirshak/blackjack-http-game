@@ -84,6 +84,7 @@ const Game = () => {
   return (
     <div>
       {game !== undefined && player !== undefined ? <Table game={game!} mainPlayer={player!} /> : ""}
+      {/* Define other tables and type of gameplay and import to use them */}
     </div>
   );
 };
