@@ -1,5 +1,4 @@
-import { useEffect } from "react";
-import { IGame, IPlayer } from "../../types";
+import { IGame, IPlayer, IPlayerCards } from "../../types";
 import Card from "../Card";
 
 interface PlayAreaProps {
@@ -8,6 +7,25 @@ interface PlayAreaProps {
 }
 
 const PlayArea = ({game, mainPlayer}: PlayAreaProps) => {
+
+
+  function findWinner() {
+    let nonBustedPlayers = game.players.filter((player) => !isBusted(player.cards));
+    let nonStayedPlayers = nonBustedPlayers.filter((player) => !player.stay);
+
+    // if there is only one player who is not busted in a game of multiple players, then they are the winner
+    if (nonBustedPlayers.length === 1 && game.players.length > 1) {
+     return nonBustedPlayers[0];
+    }
+    // if all players have STAYED, then the Non-Busted player with the highest score wins
+    if (nonStayedPlayers.length === 0) {
+      return nonBustedPlayers.reduce((prev, current) =>
+        getTotalScore(prev.cards) > getTotalScore(current.cards) ? prev : current
+      );
+    }
+    return null;
+  }
+
   const renderingStrategy = [
     // 'bottom', Bottom is always the main player
     "right",
@@ -15,29 +33,28 @@ const PlayArea = ({game, mainPlayer}: PlayAreaProps) => {
     "left",
   ];
 
-  useEffect(() => {
-    console.log("Updated game");
-  }, [game])
-
   // // Function to render cards
   const renderCards = () => {
     let area = [];
     var i = 0;
     var j = 0;
 
+    const winner = findWinner();
+
     while (i < game.players.length && i < 4) {
       const player = game.players[i];
+      const score = getTotalScore(player.cards);
 
       if (player.id === mainPlayer?.id) {
         area.push(
           <>
             <div className="bottom player-info">
               <span className="info">
-                {game.currentPlayer &&
-                game.currentPlayer.playerId === player.id
-                  ? "Current | "
-                  : ""}
+                {game.currentPlayer && game.currentPlayer.playerId === player.id ? "Current | " : ""}
                 {player.stay ? "Stayed | " : ""}
+                {winner && winner.id === player.id ? "Winner | " : ""}
+                {isBusted(player.cards) ? "Busted | " : ""}
+                {score}
               </span>
 
               <div className="cards-container">
@@ -62,10 +79,11 @@ const PlayArea = ({game, mainPlayer}: PlayAreaProps) => {
         <>
           <div className={`${strategy} player-info`}>
             <span className="info">
-              {game.currentPlayer && game.currentPlayer.playerId === player.id
-                ? "Current | "
-                : ""}
+              {game.currentPlayer && game.currentPlayer.playerId === player.id ? "Current | " : ""}
               {player.stay ? "Stayed | " : ""}
+              {winner && winner.id === player.id ? "Winner | " : ""}
+              {isBusted(player.cards) ? "Busted | " : ""}
+              {score}
             </span>
 
             <div className="cards-container">
@@ -89,6 +107,43 @@ const PlayArea = ({game, mainPlayer}: PlayAreaProps) => {
   };
 
   return <div className="square-table">{renderCards()}</div>
+}
+
+function getCardValue(value: string) {
+  switch (value) {
+    case "J":
+    case "Q":
+    case "K":
+      return 10;
+    case "A":
+      return 11;
+    default:
+      return parseInt(value);
+  }
+}
+
+function getTotalScore(cards: IPlayerCards[]) {
+  let total = 0;
+  let aces = cards.filter((card) => card.value === "A");
+  let withoutAces = cards.filter((card) => card.value !== "A");
+
+  for (const card of withoutAces) {
+    total += getCardValue(card.value);
+  }
+
+  for (const _ of aces) {
+    if ((total + 11) > 21) {
+      total += 1;
+    } else {
+      total += 11;
+    }
+  }
+  
+  return total;
+}
+
+function isBusted(cards: IPlayerCards[]) {
+  return getTotalScore(cards) > 21;
 }
 
 export default PlayArea

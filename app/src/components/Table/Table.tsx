@@ -16,7 +16,7 @@ const Table = ({ initialGame, initialPlayer }: TableProps) => {
 
   const [mainPlayer, setMainPlayer] = useState<IPlayer | undefined>(initialPlayer);
   const [game, setGame] = useState<IGame>(initialGame);
-  const [score, setScore] = useState<number>(0);
+  const [_, setRunning] = useState<boolean>(false);
   const { balance, setBalance } = useBalance();
 
   const [currentTurn, setCurrentTurn] = useState<boolean>(false);
@@ -30,25 +30,25 @@ const Table = ({ initialGame, initialPlayer }: TableProps) => {
   const token = localStorage.getItem("token");
   const decode = jwtDecode<ITokenData>(token!);
 
-  function findWinner() {
-    let nonBustedPlayers = game.players.filter((player) => !isBusted(player.cards));
-    let nonStayedPlayers = nonBustedPlayers.filter((player) => !player.stay);
-
-    // if there is only one player who is not busted in a game of multiple players, then they are the winner
-    if (nonBustedPlayers.length === 1 && game.players.length > 1) {
-     return nonBustedPlayers[0];
-    }
-    // if all players have STAYED, then the Non-Busted player with the highest score wins
-    if (nonStayedPlayers.length === 0) {
-      return nonBustedPlayers.reduce((prev, current) =>
-        getTotalScore(prev.cards) > getTotalScore(current.cards) ? prev : current
-      );
-    }
-    return null;
+  function startGame() {
+    axios.put(`${BACKEND_URL}/games/start`, {
+      gameCode: game.code,
+    }, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "ngrok-skip-browser-warning": "true",
+      },
+    }).then(() => {
+      setRunning(true);
+    }).catch((_) => {});
   }
 
   
   useEffect(() => {
+
+    // Had to use a flag to prevent multiple calls to the backend
+    // and React state updates
+    let _isRunning: boolean = false;
 
     async function getGame() {
       try {
@@ -61,22 +61,47 @@ const Table = ({ initialGame, initialPlayer }: TableProps) => {
             },
           }
         );
+
+        function findWinner() {
+          let nonBustedPlayers = res.data.players.filter((player) => !isBusted(player.cards));
+          let nonStayedPlayers = nonBustedPlayers.filter((player) => !player.stay);
+      
+          // if there is only one player who is not busted in a game of multiple players, then they are the winner
+          if (nonBustedPlayers.length === 1 && game.players.length > 1) {
+           return nonBustedPlayers[0];
+          }
+          // if all players have STAYED, then the Non-Busted player with the highest score wins
+          if (nonStayedPlayers.length === 0) {
+            return nonBustedPlayers.reduce((prev, current) =>
+              getTotalScore(prev.cards) > getTotalScore(current.cards) ? prev : current
+            );
+          }
+          return null;
+        }
+
         setGame(res.data);
         
         const winner = findWinner();
+        if (!_isRunning && res.data.players.length === res.data.playersLimit) {
+          startGame();
+          _isRunning = true;
+        }
+
         for(const player of res.data.players) {
           if (player.userId === decode.userId) {
             setMainPlayer(player);
-            setScore(getTotalScore(player.cards));
             
             // you can add cards if you have the current turn
-            if (game.currentPlayer && game.currentPlayer.userId === decode.userId) {
+            if (res.data.currentPlayer && res.data.currentPlayer.userId === decode.userId) {
               setCurrentTurn(true);
               setCanAddCard(true);
+            } else {
+              setCurrentTurn(false);
+              setCanAddCard(false);
             }
-
+            
             // if there is only one player, you cannot do anything
-            if (game.players.length === 1) {
+            if (res.data.players.length === 1) {
               setCurrentTurn(false);
               setCanClickStay(false);
             }
@@ -89,7 +114,7 @@ const Table = ({ initialGame, initialPlayer }: TableProps) => {
             // you can stay, 
             // if you have current turn & there are more than 1 players & 2+ cards & not stayed & are not winner or busted
             if (
-              game.players.length > 1 &&
+              res.data.players.length > 1 &&
               player.cards.length >= 2 && 
               !player.stay && 
               !isBusted(player.cards) && 
@@ -100,7 +125,7 @@ const Table = ({ initialGame, initialPlayer }: TableProps) => {
           }
           
           // if someone is winner, we cannot add card
-          if (!winner) {
+          if (winner) {
             setCanAddCard(false);
             setCanClickStay(false);
           }
@@ -127,11 +152,11 @@ const Table = ({ initialGame, initialPlayer }: TableProps) => {
   useEffect(() => {
     if (balance === 0) return;
 
-    if (balance < 0) {
-      document.getElementById("player-bet")!.style.color = "red";
-    } else {
-      document.getElementById("player-bet")!.style.color = "green";
-    }
+    // if (balance < 0) {
+    //   document.getElementById("player-bet")!.style.color = "red";
+    // } else {
+    //   document.getElementById("player-bet")!.style.color = "green";
+    // }
   }, [balance]);
 
   function addCard() {
@@ -244,8 +269,6 @@ const Table = ({ initialGame, initialPlayer }: TableProps) => {
       >
         Leave
       </button>
-
-      Score: {score}
     </>
   );
 };
