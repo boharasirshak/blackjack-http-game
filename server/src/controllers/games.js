@@ -159,6 +159,11 @@ async function getAGame(req, res, next) {
     }
   }
 
+  if (game.currentPlayer &&  (Math.round(Date.now() / 1000) - game.currentPlayer.startTime) > game.turnTime) {
+    // change the turn
+    console.log("Changing turn");
+  }
+
   return res.send(game);
 }
 
