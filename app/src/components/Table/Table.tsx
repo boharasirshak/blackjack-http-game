@@ -2,21 +2,26 @@ import axios from "axios";
 import { jwtDecode } from "jwt-decode";
 import { useEffect, useState } from "react";
 import { useBalance } from "../../context/Balance";
-import { IGame, IPlayer, ITokenData } from "../../types";
+import { IGame, IPlayer, IPlayerCards, ITokenData } from "../../types";
 import PlayArea from "../PlayArea";
 import "./Table.css";
 
 interface TableProps {
-  game: IGame;
-  mainPlayer: IPlayer;
+  initialGame: IGame;
+  initialPlayer?: IPlayer;
 }
 
-const Table = ({ game, mainPlayer }: TableProps) => {
+const Table = ({ initialGame, initialPlayer }: TableProps) => {
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL as string || "http://localhost:5000";
 
+  const [mainPlayer, setMainPlayer] = useState<IPlayer | undefined>(initialPlayer);
+  const [game, setGame] = useState<IGame>(initialGame);
+  const [score, setScore] = useState<number>(0);
   const { balance, setBalance } = useBalance();
 
   const [currentTurn, setCurrentTurn] = useState<boolean>(false);
+  const [canAddCard, setCanAddCard] = useState<boolean>(false);
+  const [canClickStay, setCanClickStay] = useState<boolean>(false);
   // const [canSkipTurn, setCanSkipTurn] = useState<boolean>(false);
 
   // const [isTimerSet, setIsTimerSet] = useState<boolean>(false);
@@ -25,18 +30,109 @@ const Table = ({ game, mainPlayer }: TableProps) => {
   const token = localStorage.getItem("token");
   const decode = jwtDecode<ITokenData>(token!);
 
+  function findWinner() {
+    let nonBustedPlayers = game.players.filter((player) => !isBusted(player.cards));
+    let nonStayedPlayers = nonBustedPlayers.filter((player) => !player.stay);
+
+    // if there is only one player who is not busted in a game of multiple players, then they are the winner
+    if (nonBustedPlayers.length === 1 && game.players.length > 1) {
+     return nonBustedPlayers[0];
+    }
+    // if all players have STAYED, then the Non-Busted player with the highest score wins
+    if (nonStayedPlayers.length === 0) {
+      return nonBustedPlayers.reduce((prev, current) =>
+        getTotalScore(prev.cards) > getTotalScore(current.cards) ? prev : current
+      );
+    }
+    return null;
+  }
+
   
   useEffect(() => {
-    if (game.currentPlayer && game.currentPlayer.userId === decode.userId) {
-      setCurrentTurn(true);
-    }
-  
-    if (game.players.length === 1) {
-      setCurrentTurn(true);
+
+    async function getGame() {
+      try {
+        const res = await axios.get<IGame>(
+          `${BACKEND_URL}/games/${game.code}`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              'ngrok-skip-browser-warning': 'true'
+            },
+          }
+        );
+        setGame(res.data);
+        
+        const winner = findWinner();
+        for(const player of res.data.players) {
+          if (player.userId === decode.userId) {
+            setMainPlayer(player);
+            setScore(getTotalScore(player.cards));
+            
+            // you can add cards if you have the current turn
+            if (game.currentPlayer && game.currentPlayer.userId === decode.userId) {
+              setCurrentTurn(true);
+              setCanAddCard(true);
+            }
+
+            // if there is only one player, you cannot do anything
+            if (game.players.length === 1) {
+              setCurrentTurn(false);
+              setCanClickStay(false);
+            }
+
+            // if you stayed, you cannot add card
+            if (player.stay) {
+              setCanAddCard(false);
+            }
+          
+            // you can stay, 
+            // if you have current turn & there are more than 1 players & 2+ cards & not stayed & are not winner or busted
+            if (
+              game.players.length > 1 &&
+              player.cards.length >= 2 && 
+              !player.stay && 
+              !isBusted(player.cards) && 
+              winner === null
+            ) {
+              setCanClickStay(true);
+            }
+          }
+          
+          // if someone is winner, we cannot add card
+          if (!winner) {
+            setCanAddCard(false);
+            setCanClickStay(false);
+          }
+
+          // add the balance to the user
+          if (winner && winner.userId === decode.userId) {
+            setBalance(balance + game.bet);
+          }
+        }
+      } catch (err) {
+        console.log(err);
+        alert("Invalid game code");
+        window.location.href = "/dashboard";
+      }
     }
 
-    setBalance(20);
+    const intervalId = setInterval(getGame, 2000);
+
+    return () => { 
+      clearInterval(intervalId); 
+    };
   }, []);
+  
+  useEffect(() => {
+    if (balance === 0) return;
+
+    if (balance < 0) {
+      document.getElementById("player-bet")!.style.color = "red";
+    } else {
+      document.getElementById("player-bet")!.style.color = "green";
+    }
+  }, [balance]);
 
   function addCard() {
     if (!currentTurn) {
@@ -45,7 +141,7 @@ const Table = ({ game, mainPlayer }: TableProps) => {
 
     const payload = {
       gameCode: game.code,
-      playerId: mainPlayer.id,
+      playerId: mainPlayer?.id,
     };
 
     axios
@@ -77,8 +173,8 @@ const Table = ({ game, mainPlayer }: TableProps) => {
     axios
       .put(`${BACKEND_URL}/games/turn`, {
         gameCode: game.code,
-        playerId: mainPlayer.id,
-        currentSequenceNumber: mainPlayer.sequenceNumber
+        playerId: mainPlayer?.id,
+        currentSequenceNumber: mainPlayer?.sequenceNumber
       }, {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -97,7 +193,7 @@ const Table = ({ game, mainPlayer }: TableProps) => {
     if (!conf) {
       return;
     }
-    if (mainPlayer.id === game.currentPlayer?.playerId) {
+    if (mainPlayer?.id === game.currentPlayer?.playerId) {
       changeTurn(false);
     }
 
@@ -114,7 +210,7 @@ const Table = ({ game, mainPlayer }: TableProps) => {
         },
       })
       .then(() => {
-        // window.location.href = "/dashboard";
+        window.location.href = "/dashboard";
       })
       .catch((err) => {
         alert("Error leaving game");
@@ -122,22 +218,20 @@ const Table = ({ game, mainPlayer }: TableProps) => {
       });
   }
 
-
-
   return (
     <>
       <PlayArea game={game} mainPlayer={mainPlayer} />
       <button
         className="button"
         onClick={addCard}
-        disabled={!currentTurn} // only allow hit if it's the player's turn
+        disabled={!canAddCard}
       >
         Hit
       </button>
       <button
         className="button"
         onClick={stayPlayer}
-        disabled={!currentTurn} // only allow hit if it's the player's turn
+        disabled={!canClickStay}
       >
         Stay
       </button>
@@ -150,8 +244,51 @@ const Table = ({ game, mainPlayer }: TableProps) => {
       >
         Leave
       </button>
+
+      Score: {score}
     </>
   );
 };
+
+// function checkStatus() {
+
+// }
+
+function getCardValue(value: string) {
+  switch (value) {
+    case "J":
+    case "Q":
+    case "K":
+      return 10;
+    case "A":
+      return 11;
+    default:
+      return parseInt(value);
+  }
+}
+
+function getTotalScore(cards: IPlayerCards[]) {
+  let total = 0;
+  let aces = cards.filter((card) => card.value === "A");
+  let withoutAces = cards.filter((card) => card.value !== "A");
+
+  for (const card of withoutAces) {
+    total += getCardValue(card.value);
+  }
+
+  for (const _ of aces) {
+    if ((total + 11) > 21) {
+      total += 1;
+    } else {
+      total += 11;
+    }
+  }
+  
+  return total;
+}
+
+function isBusted(cards: IPlayerCards[]) {
+  return getTotalScore(cards) > 21;
+}
 
 export default Table;

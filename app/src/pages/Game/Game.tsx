@@ -84,9 +84,9 @@ const Game = () => {
 
   return (
     <div>
-      {game !== undefined && player !== undefined ? (
+      {game !== undefined ? (
         <BalanceProvider>
-          <Table game={game!} mainPlayer={player!} />
+          <Table initialGame={game!} initialPlayer={player} />
         </BalanceProvider>
       ) : ""}
       {/* Define other tables and type of gameplay and import to use them */}

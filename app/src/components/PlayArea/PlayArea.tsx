@@ -1,9 +1,10 @@
+import { useEffect } from "react";
 import { IGame, IPlayer } from "../../types";
 import Card from "../Card";
 
 interface PlayAreaProps {
   game: IGame;
-  mainPlayer: IPlayer;
+  mainPlayer: IPlayer | undefined;
 }
 
 const PlayArea = ({game, mainPlayer}: PlayAreaProps) => {
@@ -14,6 +15,10 @@ const PlayArea = ({game, mainPlayer}: PlayAreaProps) => {
     "left",
   ];
 
+  useEffect(() => {
+    console.log("Updated game");
+  }, [game])
+
   // // Function to render cards
   const renderCards = () => {
     let area = [];
@@ -23,7 +28,7 @@ const PlayArea = ({game, mainPlayer}: PlayAreaProps) => {
     while (i < game.players.length && i < 4) {
       const player = game.players[i];
 
-      if (player.id === mainPlayer.id) {
+      if (player.id === mainPlayer?.id) {
         area.push(
           <>
             <div className="bottom player-info">
