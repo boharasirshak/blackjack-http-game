@@ -18,7 +18,7 @@ export interface IPlayerCards {
 
 export interface ICurrentPlayer {
   id: number;
-  startTurn: number;
+  startTime: number;
   playerId: number;
   sequenceNumber: number;
   userId: number;

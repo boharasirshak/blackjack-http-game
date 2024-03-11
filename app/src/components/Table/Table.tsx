@@ -12,42 +12,57 @@ interface TableProps {
 }
 
 const Table = ({ initialGame, initialPlayer }: TableProps) => {
-  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL as string || "http://localhost:5000";
+  const BACKEND_URL =
+    (import.meta.env.VITE_BACKEND_URL as string) || "http://localhost:5000";
 
-  const [mainPlayer, setMainPlayer] = useState<IPlayer | undefined>(initialPlayer);
+  const [mainPlayer, setMainPlayer] = useState<IPlayer | undefined>(
+    initialPlayer
+  );
   const [game, setGame] = useState<IGame>(initialGame);
-  const [_, setRunning] = useState<boolean>(false);
+  const [running, setRunning] = useState<boolean>(false);
   const { balance, setBalance } = useBalance();
 
   const [currentTurn, setCurrentTurn] = useState<boolean>(false);
   const [canAddCard, setCanAddCard] = useState<boolean>(false);
   const [canClickStay, setCanClickStay] = useState<boolean>(false);
 
-  // const [isTimerSet, setIsTimerSet] = useState<boolean>(false);
-  // const [timer, setTimer] = useState<number>(0);
+  const [timer, setTimer] = useState<number>(0);
 
   const token = localStorage.getItem("token");
   const decode = jwtDecode<ITokenData>(token!);
 
-  function startGame() {
-    axios.put(`${BACKEND_URL}/games/start`, {
-      gameCode: game.code,
-    }, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "ngrok-skip-browser-warning": "true",
-      },
-    }).then(() => {
+  function startGameIfPossible(gameData: IGame) {
+    if (running) return;
+
+    if (gameData.players.length === gameData.playersLimit) {
       setRunning(true);
-    }).catch((_) => {});
+      axios
+      .put(
+        `${BACKEND_URL}/games/start`,
+        {
+          gameCode: game.code,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "ngrok-skip-browser-warning": "true",
+          },
+        }
+      )
+      .then(() => {})
+      .catch((_) => {})
+      .finally(() => {
+        setRunning(true);
+      });
+
+    } else {
+      setRunning(false);
+    }
   }
 
-  
   useEffect(() => {
-
-    // Had to use a flag to prevent multiple calls to the backend
-    // and React state updates
-    let _isRunning: boolean = false;
+    // initial balance
+    setBalance(50);
 
     async function getGame() {
       try {
@@ -56,44 +71,62 @@ const Table = ({ initialGame, initialPlayer }: TableProps) => {
           {
             headers: {
               Authorization: `Bearer ${token}`,
-              'ngrok-skip-browser-warning': 'true'
+              "ngrok-skip-browser-warning": "true",
             },
           }
         );
 
         function findWinner() {
-          let nonBustedPlayers = res.data.players.filter((player) => !isBusted(player.cards));
-          let nonStayedPlayers = nonBustedPlayers.filter((player) => !player.stay);
+          let nonBustedPlayers = res.data.players.filter(
+            (player) => !isBusted(player.cards)
+          );
+          let nonStayedPlayers = nonBustedPlayers.filter(
+            (player) => !player.stay
+          );
 
           if (nonBustedPlayers.length === 0) return null;
-      
+
           // if there is only one player who is not busted in a game of multiple players, then they are the winner
           if (nonBustedPlayers.length === 1 && game.players.length > 1) {
-           return nonBustedPlayers[0];
+            return nonBustedPlayers[0];
           }
           // if all players have STAYED, then the Non-Busted player with the highest score wins
           if (nonStayedPlayers.length === 0) {
             return nonBustedPlayers.reduce((prev, current) =>
-              getTotalScore(prev.cards) > getTotalScore(current.cards) ? prev : current
+              getTotalScore(prev.cards) > getTotalScore(current.cards)
+                ? prev
+                : current
             );
           }
           return null;
         }
 
         setGame(res.data);
-        
-        const winner = findWinner();
-        if (!_isRunning && res.data.players.length === res.data.playersLimit) {
-          startGame();
-          _isRunning = true;
+
+        if (game.currentPlayer && game.currentPlayer.userId === decode.userId) {
+          if (running) {
+            let remaining = game.currentPlayer.startTime + game.turnTime - Math.round((Date.now() / 1000));
+            if (remaining <= 0) {
+              remaining = 0;
+            }
+            setTimer(remaining);
+          } else {
+            setTimer(game.turnTime);
+          }
         }
 
-        for(const player of res.data.players) {
+        const winner = findWinner();
+        startGameIfPossible(res.data);
+
+        for (const player of res.data.players) {
           if (player.userId === decode.userId) {
             setMainPlayer(player);
-            
+
             // you can add cards if you have the current turn
-            if (res.data.currentPlayer && res.data.currentPlayer.userId === decode.userId) {
+            if (
+              res.data.currentPlayer &&
+              res.data.currentPlayer.userId === decode.userId
+            ) {
               setCurrentTurn(true);
               setCanAddCard(true);
             } else {
@@ -101,7 +134,7 @@ const Table = ({ initialGame, initialPlayer }: TableProps) => {
               setCanAddCard(false);
               setCanClickStay(false);
             }
-            
+
             // if there is only one player, you cannot do anything
             if (res.data.players.length === 1) {
               setCurrentTurn(false);
@@ -113,14 +146,14 @@ const Table = ({ initialGame, initialPlayer }: TableProps) => {
               setCanAddCard(false);
               setCanClickStay(false);
             }
-          
-            // you can stay, 
+
+            // you can stay,
             // if you have current turn & there are more than 1 players & 2+ cards & not stayed & are not winner or busted
             if (
               res.data.players.length > 1 &&
-              player.cards.length >= 2 && 
-              !player.stay && 
-              !isBusted(player.cards) && 
+              player.cards.length >= 2 &&
+              !player.stay &&
+              !isBusted(player.cards) &&
               winner === null &&
               res.data.currentPlayer &&
               res.data.currentPlayer.userId === decode.userId
@@ -128,7 +161,7 @@ const Table = ({ initialGame, initialPlayer }: TableProps) => {
               setCanClickStay(true);
             }
           }
-          
+
           // if someone is winner, we cannot add card
           if (winner) {
             setCanAddCard(false);
@@ -149,19 +182,21 @@ const Table = ({ initialGame, initialPlayer }: TableProps) => {
 
     const intervalId = setInterval(getGame, 2000);
 
-    return () => { 
-      clearInterval(intervalId); 
+    return () => {
+      clearInterval(intervalId);
     };
-  }, []);
-  
-  useEffect(() => {
-    if (balance === 0) return;
+  }, [running]);
 
-    // if (balance < 0) {
-    //   document.getElementById("player-bet")!.style.color = "red";
-    // } else {
-    //   document.getElementById("player-bet")!.style.color = "green";
-    // }
+  useEffect(() => {
+    if (balance === null || balance === undefined) return;
+    const tag = document.getElementById("player-bet");
+    if (tag) {
+      if (balance < 0) {
+        tag.style.color = "red";
+      } else {
+        tag.style.color = "green";
+      }
+    }
   }, [balance]);
 
   function addCard() {
@@ -192,15 +227,19 @@ const Table = ({ initialGame, initialPlayer }: TableProps) => {
 
   function stayPlayer() {
     axios
-      .put(`${BACKEND_URL}/players/stay`, {
-        playerId: mainPlayer?.id,
-        stay: true,
-      }, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "ngrok-skip-browser-warning": "true",
+      .put(
+        `${BACKEND_URL}/players/stay`,
+        {
+          playerId: mainPlayer?.id,
+          stay: true,
         },
-      })
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "ngrok-skip-browser-warning": "true",
+          },
+        }
+      )
       .then(() => {
         changeTurn(true);
       })
@@ -217,16 +256,20 @@ const Table = ({ initialGame, initialPlayer }: TableProps) => {
       }
     }
     axios
-      .put(`${BACKEND_URL}/games/turn`, {
-        gameCode: game.code,
-        playerId: mainPlayer?.id,
-        currentSequenceNumber: mainPlayer?.sequenceNumber
-      }, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "ngrok-skip-browser-warning": "true",
+      .put(
+        `${BACKEND_URL}/games/turn`,
+        {
+          gameCode: game.code,
+          playerId: mainPlayer?.id,
+          currentSequenceNumber: mainPlayer?.sequenceNumber,
         },
-      })
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "ngrok-skip-browser-warning": "true",
+          },
+        }
+      )
       .then(() => {})
       .catch((err) => {
         console.log(err);
@@ -248,7 +291,7 @@ const Table = ({ initialGame, initialPlayer }: TableProps) => {
         params: {
           playerId: mainPlayer?.id,
           gameCode: game.code,
-          balance: balance
+          balance: balance,
         },
         headers: {
           Authorization: `Bearer ${token}`,
@@ -261,24 +304,17 @@ const Table = ({ initialGame, initialPlayer }: TableProps) => {
       .catch((err) => {
         alert("Error leaving game");
         console.log(err);
+        window.location.href = "/dashboard";
       });
   }
 
   return (
     <>
       <PlayArea game={game} mainPlayer={mainPlayer} />
-      <button
-        className="button"
-        onClick={addCard}
-        disabled={!canAddCard}
-      >
+      <button className="button" onClick={addCard} disabled={!canAddCard}>
         Hit
       </button>
-      <button
-        className="button"
-        onClick={stayPlayer}
-        disabled={!canClickStay}
-      >
+      <button className="button" onClick={stayPlayer} disabled={!canClickStay}>
         Stay
       </button>
       <button
@@ -290,6 +326,15 @@ const Table = ({ initialGame, initialPlayer }: TableProps) => {
       >
         Leave
       </button>
+
+      <span
+        style={{
+          display: "flex",
+          justifyContent: "center",
+        }}
+      >
+        Join Code: {game.code} | Balance:{" "} <span id="player-bet">{balance ?? 0}</span> &nbsp; | Time Left: {timer} sec
+      </span>
     </>
   );
 };
@@ -317,13 +362,13 @@ function getTotalScore(cards: IPlayerCards[]) {
   }
 
   for (const _ of aces) {
-    if ((total + 11) > 21) {
+    if (total + 11 > 21) {
       total += 1;
     } else {
       total += 11;
     }
   }
-  
+
   return total;
 }
 
