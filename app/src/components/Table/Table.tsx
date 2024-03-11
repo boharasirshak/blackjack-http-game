@@ -38,9 +38,9 @@ const Table = ({ game, mainPlayer }: TableProps) => {
   }, []);
 
   function addCard() {
-    if (!currentTurn) {
-      return alert("Not your turn!");
-    }
+    // if (!currentTurn) {
+    //   return alert("Not your turn!");
+    // }
 
     const payload = {
       gameCode: game.code,
@@ -55,12 +55,30 @@ const Table = ({ game, mainPlayer }: TableProps) => {
         },
       })
       .then(() => {
-        // change the turn
-        // changeTurn();
+        changeTurn();
       })
       .catch((err) => {
         console.log(err);
         alert("Error adding card to player");
+      });
+  }
+
+  function changeTurn() {
+    axios
+      .put(`${BACKEND_URL}/games/turn`, {
+        gameCode: game.code,
+        playerId: mainPlayer.id,
+        currentSequenceNumber: mainPlayer.sequenceNumber
+      }, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "true",
+        },
+      })
+      .then(() => {})
+      .catch((err) => {
+        console.log(err);
+        alert("Error changing turn");
       });
   }
 
@@ -71,7 +89,7 @@ const Table = ({ game, mainPlayer }: TableProps) => {
       <button
         className="button"
         onClick={addCard}
-        disabled={!currentTurn} // only allow hit if it's the player's turn
+        // disabled={!currentTurn} // only allow hit if it's the player's turn
       >
         Hit
       </button>

@@ -156,8 +156,6 @@ async function getAGame(req, res, next) {
 }
 
 async function joinGame(req, res, next) {
-  console.log(req.body);
-  console.log(req.params);
   const gameCode = req.body.code || req.params.code || req.query.code;
   if (!gameCode) {
     return res.status(400).send({
@@ -297,8 +295,39 @@ async function addGamePlayerCard(req, res, next) {
 
 }
 
+async function changePlayerTurn(req, res, next) {
+  const {currentSequenceNumber, gameCode, playerId} = req.body;
+  if (!currentSequenceNumber || !gameCode || !playerId) {
+    return res.status(400).send({
+      message: "currentSequenceNumber, gameCode and playerId are required!",
+    });
+  }
+  
+  var response = await axios.get(`http://sql.lavro.ru/call.php`, {
+    params: {
+      db: config.dbName,
+      pname: "changePlayerTurn",
+      p1: currentSequenceNumber,
+      p2: gameCode,
+      p3: playerId,
+    },
+    timeout: 30000,
+  });
+
+  if (response.data.ERROR) {
+    return res.status(404).send({
+      message: response.data.ERROR,
+    });
+  }
+
+  return res.send({
+    message: "Player turn changed!",
+  });
+}
+
 module.exports.getGames = getGames;
 module.exports.createGame = createGame;
 module.exports.getAGame = getAGame;
 module.exports.joinGame = joinGame;
 module.exports.addGamePlayerCard = addGamePlayerCard;
+module.exports.changePlayerTurn = changePlayerTurn;
