@@ -29,7 +29,7 @@ const PlayArea = ({game, mainPlayer}: PlayAreaProps) => {
             <div className="bottom player-info">
               <span className="info">
                 {game.currentPlayer &&
-                game.currentPlayer.userId === player.userId
+                game.currentPlayer.playerId === player.id
                   ? "Current | "
                   : ""}
                 {player.stay ? "Stayed | " : ""}
@@ -57,7 +57,7 @@ const PlayArea = ({game, mainPlayer}: PlayAreaProps) => {
         <>
           <div className={`${strategy} player-info`}>
             <span className="info">
-              {game.currentPlayer && game.currentPlayer.userId === player.userId
+              {game.currentPlayer && game.currentPlayer.playerId === player.id
                 ? "Current | "
                 : ""}
               {player.stay ? "Stayed | " : ""}
