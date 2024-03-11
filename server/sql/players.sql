@@ -86,6 +86,8 @@ BEGIN
     DECLARE v_user_id INT;
     DECLARE v_game_id INT;
     DECLARE v_players_count INT;
+    DECLARE v_current_player_id INT;
+    DECLARE v_current_player_pid INT;
     DECLARE v_players_sequence INT;
 
     -- Check if the player exists
@@ -106,26 +108,28 @@ BEGIN
     -- Get the user ID of the player
     SELECT user_id, sequence_number INTO v_user_id, v_players_sequence FROM players WHERE id = p_player_id;
 
-    -- Delete the players_hands
+    -- Delete the player's hands
     DELETE FROM player_hands WHERE player_id = p_player_id;
 
     -- Update the user balance
     UPDATE users SET balance = balance + p_balance WHERE id = v_user_id;
 
-    -- If the player was the last one in the game, delete the game
+    -- If the player was the last one in the game
     IF v_players_count = 1 THEN
-        DELETE FROM games WHERE id = v_game_id;
-
-        -- If the player is also the current_player, delete the current_player
         DELETE FROM current_players WHERE player_id = p_player_id;
+        DELETE FROM players WHERE id = p_player_id;
+        DELETE FROM games WHERE id = v_game_id;
     ELSE
-        -- If the player is the current_player, and there are still other players, change the turn
-        CALL changePlayerTurn(v_players_sequence, p_game_code, p_player_id);
+        -- More than one player in the game, might need to handle turn change
+        SELECT id, player_id INTO v_current_player_id, v_current_player_pid FROM current_players 
+        WHERE player_id = p_player_id;
+
+        IF v_current_player_pid = p_player_id THEN
+            CALL changePlayerTurn(v_players_sequence, p_game_code, p_player_id);
+        END IF;
+        
+        DELETE FROM players WHERE id = p_player_id;
     END IF;
 
-    -- Delete the player at last
-    DELETE FROM players WHERE id = p_player_id;
-
     SELECT 'Player deleted successfully' AS message;
-
 END;
