@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 
 import Table from "../../components/Table";
+import { BalanceProvider } from '../../context/Balance';
 import { IError, IGame, IPlayer } from "../../types";
 import "./Game.css";
 
@@ -83,7 +84,11 @@ const Game = () => {
 
   return (
     <div>
-      {game !== undefined && player !== undefined ? <Table game={game!} mainPlayer={player!} /> : ""}
+      {game !== undefined && player !== undefined ? (
+        <BalanceProvider>
+          <Table game={game!} mainPlayer={player!} />
+        </BalanceProvider>
+      ) : ""}
       {/* Define other tables and type of gameplay and import to use them */}
     </div>
   );

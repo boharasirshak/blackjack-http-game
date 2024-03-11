@@ -74,3 +74,58 @@ BEGIN
 
     SELECT 'Player created successfully' AS message;
 END;
+
+DROP PROCEDURE IF EXISTS deletePlayer;
+CREATE PROCEDURE deletePlayer(IN p_player_id INT, IN p_game_code VARCHAR(20), IN p_balance INT)
+COMMENT 'Deletes a player from game, its cards, and adds/subtracts its balance to the user, 
+        p_player_id: The ID of the player, 
+        p_game_code: The game code, 
+        p_balance: The balance of the player.'
+BEGIN
+    DECLARE v_player_exists INT DEFAULT 0;
+    DECLARE v_user_id INT;
+    DECLARE v_game_id INT;
+    DECLARE v_players_count INT;
+    DECLARE v_players_sequence INT;
+
+    -- Check if the player exists
+    SELECT COUNT(*) INTO v_player_exists FROM players WHERE id = p_player_id;
+    IF v_player_exists = 0 THEN 
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Player not found';
+    END IF;
+
+    -- Check if the game exists using game_code and get its ID 
+    SELECT id INTO v_game_id FROM games WHERE code = p_game_code;
+    IF v_game_id IS NULL THEN 
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Game not found';
+    END IF;
+
+    -- Get the number of players in the game
+    SELECT COUNT(*) INTO v_players_count FROM players WHERE game_id = v_game_id;
+
+    -- Get the user ID of the player
+    SELECT user_id, sequence_number INTO v_user_id, v_players_sequence FROM players WHERE id = p_player_id;
+
+    -- Delete the players_hands
+    DELETE FROM player_hands WHERE player_id = p_player_id;
+
+    -- Update the user balance
+    UPDATE users SET balance = balance + p_balance WHERE id = v_user_id;
+
+    -- If the player was the last one in the game, delete the game
+    IF v_players_count = 1 THEN
+        DELETE FROM games WHERE id = v_game_id;
+
+        -- If the player is also the current_player, delete the current_player
+        DELETE FROM current_players WHERE player_id = p_player_id;
+    ELSE
+        -- If the player is the current_player, and there are still other players, change the turn
+        CALL changePlayerTurn(v_players_sequence, p_game_code, p_player_id);
+    END IF;
+
+    -- Delete the player at last
+    DELETE FROM players WHERE id = p_player_id;
+
+    SELECT 'Player deleted successfully' AS message;
+
+END;
