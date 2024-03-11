@@ -133,3 +133,23 @@ BEGIN
 
     SELECT 'Player deleted successfully' AS message;
 END;
+
+DROP PROCEDURE IF EXISTS updatePlayerStayState;
+CREATE PROCEDURE updatePlayerStayState(IN p_player_id INT, IN p_stay BOOLEAN)
+COMMENT 'Update the stay state of a player, 
+        p_player_id: The ID of the player, 
+        p_stay: The new stay state.'
+BEGIN
+    DECLARE v_player_exists INT DEFAULT 0;
+
+    -- Check if the player exists
+    SELECT COUNT(*) INTO v_player_exists FROM players WHERE id = p_player_id;
+    IF v_player_exists = 0 THEN 
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Player not found';
+    END IF;
+
+    -- Update the stay state
+    UPDATE players SET stay = p_stay WHERE id = p_player_id;
+
+    SELECT 'Player stay state updated successfully' AS message;
+END;
