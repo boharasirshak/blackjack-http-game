@@ -128,18 +128,18 @@ async function getAGame(req, res, next) {
   const cardsData = response.data.RESULTS[2];
   for (var i = 0; i < cardsData.player_id.length; i++) {
     for (let j = 0; j < game.players.length; j++) {
-      let player = game.players[j];
-      if (player.id === cardsData.player_id[i]) {
-        if (!player.cards) {
-          player.cards = [];
+      if (game.players[j].id === cardsData.player_id[i]) {
+        if (!game.players[j].cards) {
+          game.players[j].cards = [];
         }
-        player.cards.push({
+        game.players[j].cards.push({
           value: cardsData.value[i],
           suite: cardsData.suit[i],
         });
       }
     }
   }
+
 
   const currentPlayerData = response.data.RESULTS[3];
   if (currentPlayerData.current_player_id.length > 0) {
@@ -325,9 +325,38 @@ async function changePlayerTurn(req, res, next) {
   });
 }
 
+async function startGame(req, res, next) {
+  const { gameCode } = req.body;
+  if (!gameCode) {
+    return res.status(400).send({
+      message: "gameCode is required!",
+    });
+  }
+
+  var response = await axios.get(`http://sql.lavro.ru/call.php`, {
+    params: {
+      db: config.dbName,
+      pname: "startGame",
+      p1: gameCode,
+    },
+    timeout: 30000,
+  });
+
+  if (response.data.ERROR) {
+    return res.status(404).send({
+      message: response.data.ERROR,
+    });
+  }
+
+  return res.send({
+    message: "Game started!",
+  });
+}
+
 module.exports.getGames = getGames;
 module.exports.createGame = createGame;
 module.exports.getAGame = getAGame;
 module.exports.joinGame = joinGame;
 module.exports.addGamePlayerCard = addGamePlayerCard;
 module.exports.changePlayerTurn = changePlayerTurn;
+module.exports.startGame = startGame;
