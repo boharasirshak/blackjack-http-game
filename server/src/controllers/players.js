@@ -38,9 +38,7 @@ async function updatePlayerStay(req, res, next) {
       message: "playerId, gameCode and stay required in the body or query!",
     });
   }
-  console.log(stay);
   stay = stay === true ? 1 : 0; // sql booleans are 1 or 0, so typecast to 1 or 0
-  console.log(stay);
 
   var response = await axios.get(`http://sql.lavro.ru/call.php`, {
     params: {

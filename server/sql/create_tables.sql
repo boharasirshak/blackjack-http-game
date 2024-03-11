@@ -32,7 +32,7 @@ CREATE TABLE IF NOT EXISTS players (
 
 CREATE TABLE IF NOT EXISTS current_players (
   id INT AUTO_INCREMENT PRIMARY KEY,
-  start_time TIMESTAMP NOT NULL,
+  start_time BIGINT NOT NULL,
   player_id INT NOT NULL,
   FOREIGN KEY (player_id) REFERENCES players(id) ON DELETE CASCADE
 );

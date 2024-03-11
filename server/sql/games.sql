@@ -51,7 +51,6 @@ BEGIN
 END;
 
 
-
 DROP PROCEDURE IF EXISTS createGame;
 CREATE PROCEDURE createGame(
     IN p_game_code VARCHAR(20), 
@@ -244,7 +243,7 @@ BEGIN
     END IF;
 
     -- Create the current player
-    INSERT INTO current_players (player_id, start_time) VALUES ( v_first_player_id, NOW());
+    INSERT INTO current_players (player_id, start_time) VALUES ( v_first_player_id, UNIX_TIMESTAMP());
     
     -- Return the first player
     SELECT v_first_player_id, v_first_sequence_number;
