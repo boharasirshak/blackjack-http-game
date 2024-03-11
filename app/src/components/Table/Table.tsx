@@ -65,6 +65,8 @@ const Table = ({ initialGame, initialPlayer }: TableProps) => {
         function findWinner() {
           let nonBustedPlayers = res.data.players.filter((player) => !isBusted(player.cards));
           let nonStayedPlayers = nonBustedPlayers.filter((player) => !player.stay);
+
+          if (nonBustedPlayers.length === 0) return null;
       
           // if there is only one player who is not busted in a game of multiple players, then they are the winner
           if (nonBustedPlayers.length === 1 && game.players.length > 1) {
@@ -109,6 +111,7 @@ const Table = ({ initialGame, initialPlayer }: TableProps) => {
             // if you stayed, you cannot add card
             if (player.stay) {
               setCanAddCard(false);
+              setCanClickStay(false);
             }
           
             // you can stay, 
@@ -118,7 +121,8 @@ const Table = ({ initialGame, initialPlayer }: TableProps) => {
               player.cards.length >= 2 && 
               !player.stay && 
               !isBusted(player.cards) && 
-              winner === null
+              winner === null &&
+              res.data.currentPlayer?.userId === decode.userId
             ) {
               setCanClickStay(true);
             }
@@ -186,7 +190,23 @@ const Table = ({ initialGame, initialPlayer }: TableProps) => {
   }
 
   function stayPlayer() {
-    
+    axios
+      .put(`${BACKEND_URL}/players/stay`, {
+        playerId: mainPlayer?.id,
+        stay: true,
+      }, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "true",
+        },
+      })
+      .then(() => {
+        changeTurn(true);
+      })
+      .catch((err) => {
+        console.log(err);
+        alert("Error staying player");
+      });
   }
 
   function changeTurn(check = false) {
@@ -272,10 +292,6 @@ const Table = ({ initialGame, initialPlayer }: TableProps) => {
     </>
   );
 };
-
-// function checkStatus() {
-
-// }
 
 function getCardValue(value: string) {
   switch (value) {

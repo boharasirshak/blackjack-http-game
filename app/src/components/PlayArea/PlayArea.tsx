@@ -13,6 +13,8 @@ const PlayArea = ({game, mainPlayer}: PlayAreaProps) => {
     let nonBustedPlayers = game.players.filter((player) => !isBusted(player.cards));
     let nonStayedPlayers = nonBustedPlayers.filter((player) => !player.stay);
 
+    if (nonBustedPlayers.length === 0) return null;
+
     // if there is only one player who is not busted in a game of multiple players, then they are the winner
     if (nonBustedPlayers.length === 1 && game.players.length > 1) {
      return nonBustedPlayers[0];

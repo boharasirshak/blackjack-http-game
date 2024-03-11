@@ -18,19 +18,24 @@ const Games = () => {
   const [players, setPlayers] = useState(2);
 
   useEffect(() => {
-    axios
-      .get<GameData[]>(`${BACKEND_URL}/games`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "ngrok-skip-browser-warning": "true",
-        },
-      })
-      .then((res) => {
-        setGames(res.data);
-      })
-      .catch((err) => {
-        console.log(err.response.data.message || err.message);
-      });
+    try {
+      axios
+        .get<GameData[]>(`${BACKEND_URL}/games`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "ngrok-skip-browser-warning": "true",
+          },
+        })
+        .then((res) => {
+          setGames(res.data);
+        })
+        .catch((err) => {
+          console.log(err.response.data.message || err.message);
+        });
+    } catch {
+      console.log("Error fetching games");
+      alert("Error fetching games. Please refresh.");
+    }
   }, [setGames, token]);
 
   function openCreateGamePopup() {
