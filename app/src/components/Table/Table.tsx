@@ -22,7 +22,6 @@ const Table = ({ initialGame, initialPlayer }: TableProps) => {
   const [currentTurn, setCurrentTurn] = useState<boolean>(false);
   const [canAddCard, setCanAddCard] = useState<boolean>(false);
   const [canClickStay, setCanClickStay] = useState<boolean>(false);
-  // const [canSkipTurn, setCanSkipTurn] = useState<boolean>(false);
 
   // const [isTimerSet, setIsTimerSet] = useState<boolean>(false);
   // const [timer, setTimer] = useState<number>(0);
@@ -100,6 +99,7 @@ const Table = ({ initialGame, initialPlayer }: TableProps) => {
             } else {
               setCurrentTurn(false);
               setCanAddCard(false);
+              setCanClickStay(false);
             }
             
             // if there is only one player, you cannot do anything
@@ -122,7 +122,8 @@ const Table = ({ initialGame, initialPlayer }: TableProps) => {
               !player.stay && 
               !isBusted(player.cards) && 
               winner === null &&
-              res.data.currentPlayer?.userId === decode.userId
+              res.data.currentPlayer &&
+              res.data.currentPlayer.userId === decode.userId
             ) {
               setCanClickStay(true);
             }
