@@ -13,14 +13,19 @@ async function verifyToken(req, res, next) {
     return res.status(403).send({ message: "No token provided!" });
   }
 
-  var response = await axios.get(`http://sql.lavro.ru/call.php`, {
-    params: {
-      db: config.dbName,
-      pname: "getUserByToken",
-      p1: token,
-    },
-    timeout: 60000,
-  });
+  try {
+    var response = await axios.get(`http://sql.lavro.ru/call.php`, {
+      params: {
+        db: config.dbName,
+        pname: "getUserByToken",
+        p1: token,
+      },
+      timeout: 60000,
+    });
+  } catch {
+    return res.status(500).send({ message: "Error verifying token!" });
+  }
+
 
   if (
     !response.data.RESULTS[0].id ||
