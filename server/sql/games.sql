@@ -146,10 +146,82 @@ COMMENT 'Changes the turn of the player in the game,
         p_player_id: The ID of the player.'
 BEGIN
     DECLARE v_game_id INT;
-    DECLARE v_next_player_id INT;
+    DECLARE v_next_player_id INT DEFAULT NULL;
     DECLARE v_next_sequence_number INT;
     DECLARE v_players_count INT;
     DECLARE v_current_player_id INT;
+    DECLARE v_score INT;
+    DECLARE finished INT DEFAULT 0;
+
+    -- Get the game ID
+    SELECT id INTO v_game_id FROM games WHERE code = p_game_code;
+    IF v_game_id IS NULL THEN 
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Game not found';
+    END IF;
+    
+    -- Initialize loop variables
+    SET v_next_sequence_number = p_current_sequence_number + 1;
+
+    -- Loop to find the next player
+    player_loop: LOOP
+        -- Attempt to find the next player who has not stayed
+        SELECT id INTO v_next_player_id FROM players
+        WHERE game_id = v_game_id 
+        AND sequence_number >= v_next_sequence_number
+        AND stay = FALSE
+        ORDER BY sequence_number ASC
+        LIMIT 1;
+        
+        -- If no player is found and it's the first loop iteration, try from the start
+        IF v_next_player_id IS NULL AND finished = 0 THEN
+            SET v_next_sequence_number = 0; -- Reset to start from the first player
+            SET finished = 1; -- Ensure the loop can finish if no valid players are found
+            ITERATE player_loop;
+        END IF;
+        
+        -- Exit loop if no valid next player
+        IF v_next_player_id IS NULL THEN
+            LEAVE player_loop;
+        END IF;
+        
+        -- Calculate or retrieve the player's score.
+        CALL getTotalScore(v_next_player_id, @player_score);
+        SET v_score = @player_score; -- Retrieve the score from the session variable
+        
+        -- Check if the player is busted (>21). If so, skip them.
+        IF v_score > 21 THEN
+            SET v_next_sequence_number = v_next_sequence_number + 1;
+            ITERATE player_loop;
+        END IF;
+
+        -- If a valid player is found, exit the loop
+        LEAVE player_loop;
+    END LOOP player_loop;
+
+    -- Update or insert the current player
+    IF v_next_player_id IS NOT NULL THEN
+        SELECT COUNT(*) INTO v_players_count FROM current_players WHERE player_id IN (SELECT id FROM players WHERE game_id = v_game_id);
+        
+        IF v_players_count = 0 THEN
+            INSERT INTO current_players (player_id, start_time) VALUES (v_next_player_id, NOW());
+        ELSE
+            SELECT id INTO v_current_player_id FROM current_players WHERE player_id IN (SELECT id FROM players WHERE game_id = v_game_id);
+            UPDATE current_players SET player_id = v_next_player_id, start_time = NOW() WHERE id = v_current_player_id;
+        END IF;
+    END IF;
+END;
+
+DROP PROCEDURE IF EXISTS startGame;
+CREATE PROCEDURE startGame(
+    IN p_game_code VARCHAR(20)
+)
+COMMENT 'Starts the game by changing the turn to the first player, 
+        p_game_code: Unique game code.'
+BEGIN
+    DECLARE v_game_id INT;
+    DECLARE v_first_player_id INT;
+    DECLARE v_first_sequence_number INT;
+    DECLARE v_players_count INT;
     
     -- Get the game ID
     SELECT id INTO v_game_id FROM games WHERE code = p_game_code;
@@ -157,34 +229,23 @@ BEGIN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Game not found';
     END IF;
     
-    -- Get the next player
-    SELECT id, sequence_number INTO v_next_player_id, v_next_sequence_number FROM players 
-    WHERE game_id = v_game_id AND sequence_number > p_current_sequence_number
+    -- Get the first player
+    SELECT id, sequence_number INTO v_first_player_id, v_first_sequence_number FROM players 
+    WHERE game_id = v_game_id
     ORDER BY sequence_number ASC
     LIMIT 1;
     
-    -- If there is no next player, get the first player
-    IF v_next_player_id IS NULL THEN
-        SELECT id, sequence_number INTO v_next_player_id, v_next_sequence_number 
-        FROM players WHERE game_id = v_game_id
-        ORDER BY sequence_number ASC
-        LIMIT 1;
-    END IF;
-
-    -- Check if the current_player exists for the game, if not then create one, else update it
+    -- Check if the current_player exists for the players in the game
     SELECT COUNT(*) INTO v_players_count FROM current_players 
     WHERE player_id in (SELECT id FROM players WHERE game_id = v_game_id);
-    
-    IF v_players_count = 0 THEN
-        INSERT INTO current_players (player_id, start_time) VALUES ( v_next_player_id, NOW());
-    ELSE
-        -- Get the current_player's
-        SELECT id INTO v_current_player_id FROM current_players 
-        WHERE player_id IN (SELECT id FROM players WHERE game_id = v_game_id);
 
-        UPDATE current_players SET player_id = v_next_player_id, start_time = NOW() WHERE id = v_current_player_id;
+    IF v_players_count > 0 THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Game has already started';
     END IF;
+
+    -- Create the current player
+    INSERT INTO current_players (player_id, start_time) VALUES ( v_first_player_id, NOW());
     
-    -- Return the next player
-    SELECT v_next_player_id, v_next_sequence_number;
+    -- Return the first player
+    SELECT v_first_player_id, v_first_sequence_number;
 END;
