@@ -38,9 +38,9 @@ const Table = ({ game, mainPlayer }: TableProps) => {
   }, []);
 
   function addCard() {
-    // if (!currentTurn) {
-    //   return alert("Not your turn!");
-    // }
+    if (!currentTurn) {
+      return alert("Not your turn!");
+    }
 
     const payload = {
       gameCode: game.code,
@@ -89,7 +89,7 @@ const Table = ({ game, mainPlayer }: TableProps) => {
       <button
         className="button"
         onClick={addCard}
-        // disabled={!currentTurn} // only allow hit if it's the player's turn
+        disabled={!currentTurn} // only allow hit if it's the player's turn
       >
         Hit
       </button>
