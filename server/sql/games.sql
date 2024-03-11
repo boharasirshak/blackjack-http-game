@@ -51,12 +51,6 @@ BEGIN
 END;
 
 
-DROP PROCEDURE IF EXISTS getAllGames;
-CREATE PROCEDURE getAllGames()
-COMMENT 'Retrieve details of all games available in the database without any input parameters.'
-BEGIN
-    SELECT * FROM games;
-END;
 
 DROP PROCEDURE IF EXISTS createGame;
 CREATE PROCEDURE createGame(
@@ -138,4 +132,59 @@ BEGIN
     CALL createPlayer(v_game_id, p_user_id, v_player_id);
     
     SELECT v_player_id;
+END;
+
+DROP PROCEDURE IF EXISTS changePlayerTurn;
+CREATE PROCEDURE changePlayerTurn(
+    IN p_current_sequence_number INT,
+    IN p_game_code VARCHAR(20), 
+    IN p_player_id INT
+)
+COMMENT 'Changes the turn of the player in the game, 
+        p_current_sequence_number: The current sequence number of the player, 
+        p_game_code: Unique game code, 
+        p_player_id: The ID of the player.'
+BEGIN
+    DECLARE v_game_id INT;
+    DECLARE v_next_player_id INT;
+    DECLARE v_next_sequence_number INT;
+    DECLARE v_players_count INT;
+    DECLARE v_current_player_id INT;
+    
+    -- Get the game ID
+    SELECT id INTO v_game_id FROM games WHERE code = p_game_code;
+    IF v_game_id IS NULL THEN 
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Game not found';
+    END IF;
+    
+    -- Get the next player
+    SELECT id, sequence_number INTO v_next_player_id, v_next_sequence_number FROM players 
+    WHERE game_id = v_game_id AND sequence_number > p_current_sequence_number
+    ORDER BY sequence_number ASC
+    LIMIT 1;
+    
+    -- If there is no next player, get the first player
+    IF v_next_player_id IS NULL THEN
+        SELECT id, sequence_number INTO v_next_player_id, v_next_sequence_number 
+        FROM players WHERE game_id = v_game_id
+        ORDER BY sequence_number ASC
+        LIMIT 1;
+    END IF;
+
+    -- Check if the current_player exists for the game, if not then create one, else update it
+    SELECT COUNT(*) INTO v_players_count FROM current_players 
+    WHERE player_id in (SELECT id FROM players WHERE game_id = v_game_id);
+    
+    IF v_players_count = 0 THEN
+        INSERT INTO current_players (player_id, start_time) VALUES ( v_next_player_id, NOW());
+    ELSE
+        -- Get the current_player's
+        SELECT id INTO v_current_player_id FROM current_players 
+        WHERE player_id IN (SELECT id FROM players WHERE game_id = v_game_id);
+
+        UPDATE current_players SET player_id = v_next_player_id, start_time = NOW() WHERE id = v_current_player_id;
+    END IF;
+    
+    -- Return the next player
+    SELECT v_next_player_id, v_next_sequence_number;
 END;
