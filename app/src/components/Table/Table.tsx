@@ -38,9 +38,9 @@ const Table = ({ game, mainPlayer }: TableProps) => {
   }, []);
 
   function addCard() {
-    // if (!currentTurn) {
-    //   return alert("Not your turn!");
-    // }
+    if (!currentTurn) {
+      return alert("Not your turn!");
+    }
 
     const payload = {
       gameCode: game.code,
