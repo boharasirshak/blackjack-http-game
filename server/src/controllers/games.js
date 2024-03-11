@@ -80,14 +80,21 @@ async function getAGame(req, res, next) {
     currentPlayer: null
   };
 
-  var response = await axios.get(`http://sql.lavro.ru/call.php`, {
-    params: {
-      db: config.dbName,
-      pname: "getGameData",
-      p1: gameCode,
-    },
-    timeout: 30000,
-  });
+  try {
+    var response = await axios.get(`http://sql.lavro.ru/call.php`, {
+      params: {
+        db: config.dbName,
+        pname: "getGameData",
+        p1: gameCode,
+      },
+      timeout: 30000,
+    });
+  } catch {
+    return res.status(500).send({
+      message: "Error getting game!",
+    });
+  }
+
 
   if (response.data.ERROR) {
     return res.status(404).send({

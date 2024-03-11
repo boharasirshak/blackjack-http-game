@@ -32,20 +32,21 @@ async function deletePlayer(req, res, next) {
 }
 
 async function updatePlayerStay(req, res, next) {
-  let { playerId, gameCode, stay } = req.body || req.query;
-  if (!playerId || !gameCode || stay === undefined || stay === null) {
+  let { playerId, stay } = req.body || req.query;
+  if (!playerId  || stay === undefined || stay === null) {
     return res.status(400).send({
       message: "playerId, gameCode and stay required in the body or query!",
     });
   }
+
+  console.log(stay);
 
   var response = await axios.get(`http://sql.lavro.ru/call.php`, {
     params: {
       db: config.dbName,
       pname: "updatePlayerStayState",
       p1: playerId,
-      p2: gameCode,
-      p3: stay,
+      p2: stay,
     },
     timeout: 30000,
   });
