@@ -22,6 +22,7 @@ export interface ICurrentPlayer {
   playerId: number;
   sequenceNumber: number;
   userId: number;
+  username: string;
 }
 
 export interface IPlayer {
@@ -30,6 +31,7 @@ export interface IPlayer {
   userId: number;
   stay: boolean;
   sequenceNumber: number;
+  username: string;
   cards: IPlayerCards[];
 }
 

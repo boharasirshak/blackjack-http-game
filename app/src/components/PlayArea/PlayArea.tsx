@@ -52,6 +52,7 @@ const PlayArea = ({game, mainPlayer}: PlayAreaProps) => {
           <>
             <div className="bottom player-info">
               <span className="info">
+                {player.username} {" | "} 
                 {game.currentPlayer && game.currentPlayer.playerId === player.id ? "Current | " : ""}
                 {player.stay ? "Stayed | " : ""}
                 {winner && winner.id === player.id ? "Winner | " : ""}
