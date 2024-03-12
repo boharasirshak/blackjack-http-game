@@ -180,6 +180,20 @@ async function getAGame(req, res, next) {
           console.log("Player turn changed!")
         })
         .catch((error) => {});
+
+        axios.get(`http://sql.lavro.ru/call.php`, {
+          params: {
+            db: config.dbName,
+            pname: "updatePlayerStayState",
+            p1: playerId,
+            p2: "1",
+          },
+          timeout: 30000,
+        })
+        .then((response) => {
+          console.log("Player stay changed!")
+        })
+        .catch((error) => {});
       }
     }
   }
