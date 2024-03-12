@@ -2,7 +2,7 @@ import axios from "axios";
 import { jwtDecode } from "jwt-decode";
 import { useEffect, useState } from "react";
 import { useBalance } from "../../context/Balance";
-import { IGame, IPlayer, IPlayerCards, ITokenData } from "../../types";
+import { ICurrentPlayer, IGame, IPlayer, IPlayerCards, ITokenData } from "../../types";
 import PlayArea from "../PlayArea";
 import "./Table.css";
 
@@ -18,14 +18,16 @@ const Table = ({ initialGame, initialPlayer }: TableProps) => {
   const [mainPlayer, setMainPlayer] = useState<IPlayer | undefined>(
     initialPlayer
   );
+  const [currentPlayer, setCurrentPlayer] = useState<ICurrentPlayer>();
   const [game, setGame] = useState<IGame>(initialGame);
   const [running, setRunning] = useState<boolean>(false);
   const { balance, setBalance } = useBalance();
-
+  
   const [currentTurn, setCurrentTurn] = useState<boolean>(false);
   const [canAddCard, setCanAddCard] = useState<boolean>(false);
   const [canClickStay, setCanClickStay] = useState<boolean>(false);
 
+  const [isTimerSet, setIsTimerSet] = useState<boolean>(false);
   const [timer, setTimer] = useState<number>(0);
 
   const token = localStorage.getItem("token");
@@ -62,12 +64,13 @@ const Table = ({ initialGame, initialPlayer }: TableProps) => {
 
   useEffect(() => {
     // initial balance
-    setBalance(50);
+    setBalance(game.bet);
+    let _istimerSet = isTimerSet;
 
     async function getGame() {
       try {
         const res = await axios.get<IGame>(
-          `${BACKEND_URL}/games/${game.code}`,
+          `${BACKEND_URL}/games/${game.code}?playerId=${mainPlayer?.id}&playerSequenceNumber=${mainPlayer?.sequenceNumber}`,
           {
             headers: {
               Authorization: `Bearer ${token}`,
@@ -103,24 +106,22 @@ const Table = ({ initialGame, initialPlayer }: TableProps) => {
 
         setGame(res.data);
 
-        if (game.currentPlayer && game.currentPlayer.userId === decode.userId) {
-          if (running) {
-            let remaining = game.currentPlayer.startTime + game.turnTime - Math.round((Date.now() / 1000));
-            if (remaining <= 0) {
-              remaining = 0;
-            }
-            setTimer(remaining);
-          } else {
-            setTimer(game.turnTime);
-          }
-        }
-
         const winner = findWinner();
         startGameIfPossible(res.data);
+
+        if (res.data.currentPlayer) {
+          setCurrentPlayer(res.data.currentPlayer);
+        }
 
         for (const player of res.data.players) {
           if (player.userId === decode.userId) {
             setMainPlayer(player);
+
+            if (!_istimerSet) {
+              setIsTimerSet(true);
+              _istimerSet = true;
+              setTimer(res.data.turnTime);
+            }
 
             // you can add cards if you have the current turn
             if (
@@ -198,6 +199,43 @@ const Table = ({ initialGame, initialPlayer }: TableProps) => {
       }
     }
   }, [balance]);
+
+  useEffect(() => {
+    // do not decrease the timer if there is only one player in the game
+    if (game.players.length === 1) return;
+
+    // do not decrease the timer if it's not the player's turn
+    if (mainPlayer?.id !== currentPlayer?.playerId) {
+      setTimer(game?.turnTime!);
+      return;
+    } 
+
+    if (!isTimerSet) return;
+
+    if (timer === 0) return;
+
+    if (timer < 0) {
+      setTimer(0);
+      return;
+    }
+
+    const intervalId = setInterval(() => {
+      setTimer((prevTimer) => prevTimer - 1);
+    }, 1000);
+
+    return () => clearInterval(intervalId);
+    
+  }, [isTimerSet, game.players.length, currentPlayer, mainPlayer, game]);
+
+  useEffect(() => {
+    if (timer <= 0 && isTimerSet) {
+      const winner = findWinnerDelayed(game);
+      if (mainPlayer?.id !== winner?.id) {
+        setIsTimerSet(false);
+        setTimer(0);
+      }
+    }
+  }, [timer, game, mainPlayer]); 
 
   function addCard() {
     if (!currentTurn) {
@@ -374,6 +412,31 @@ function getTotalScore(cards: IPlayerCards[]) {
 
 function isBusted(cards: IPlayerCards[]) {
   return getTotalScore(cards) > 21;
+}
+
+function findWinnerDelayed(game: IGame) {
+  let nonBustedPlayers = game.players.filter(
+    (player) => !isBusted(player.cards)
+  );
+  let nonStayedPlayers = nonBustedPlayers.filter(
+    (player) => !player.stay
+  );
+
+  if (nonBustedPlayers.length === 0) return null;
+
+  // if there is only one player who is not busted in a game of multiple players, then they are the winner
+  if (nonBustedPlayers.length === 1 && game.players.length > 1) {
+    return nonBustedPlayers[0];
+  }
+  // if all players have STAYED, then the Non-Busted player with the highest score wins
+  if (nonStayedPlayers.length === 0) {
+    return nonBustedPlayers.reduce((prev, current) =>
+      getTotalScore(prev.cards) > getTotalScore(current.cards)
+        ? prev
+        : current
+    );
+  }
+  return null;
 }
 
 export default Table;
