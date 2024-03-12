@@ -8,22 +8,24 @@ BEGIN
 END;
 
 DROP PROCEDURE IF EXISTS getGameData;
-CREATE PROCEDURE getGameData(IN p_game_code INT)
+CREATE PROCEDURE getGameData(IN p_game_code VARCHAR(16))
 COMMENT 'Retrieve details of a game, its players and their cards using its unique game code, 
         p_game_code: The game code identifying the game.'
 BEGIN  
     -- Select game details
-  SELECT * FROM games WHERE code = p_game_code;
+    SELECT * FROM games WHERE code = p_game_code;
 
-  -- Select players in the game
+    -- Select players in the game along with players, user.
     SELECT 
         p.id, 
         p.sequence_number, 
         p.user_id, 
+        u.username, 
         p.game_id, 
         p.stay
     FROM players p
     INNER JOIN games g ON p.game_id = g.id
+    INNER JOIN users u ON p.user_id = u.id -- Join with users table to get username
     WHERE g.code = p_game_code;
 
     -- Select cards for each player in the game
@@ -37,19 +39,20 @@ BEGIN
     INNER JOIN cards c ON ph.card_id = c.id
     WHERE g.code = p_game_code;
     
-    -- Select current player in the game
+    -- Select current player in the game along with the associated username
     SELECT 
         cp.id AS current_player_id,
         cp.start_time,
         p.id AS player_id,
         p.sequence_number,
-        p.user_id
+        p.user_id,
+        u.username
     FROM current_players cp
     INNER JOIN players p ON cp.player_id = p.id
     INNER JOIN games g ON p.game_id = g.id
+    INNER JOIN users u ON p.user_id = u.id 
     WHERE g.code = p_game_code;
 END;
-
 
 DROP PROCEDURE IF EXISTS createGame;
 CREATE PROCEDURE createGame(
