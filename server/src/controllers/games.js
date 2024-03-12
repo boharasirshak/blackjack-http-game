@@ -75,6 +75,8 @@ async function getAGame(req, res, next) {
     });
   }
 
+  const {playerId , playerSequenceNumber} = req.query || req.body || req.params;
+
   let game = {
     players: [],
     currentPlayer: null
@@ -128,6 +130,7 @@ async function getAGame(req, res, next) {
       userId: playerData.user_id[i],
       gameId: playerData.game_id[i],
       stay: playerData.stay[i],
+      username: playerData.username[i],
       cards: []
     });
   }
@@ -156,12 +159,29 @@ async function getAGame(req, res, next) {
       startTime: currentPlayerData.start_time[0],
       playerId: currentPlayerData.player_id[0],
       userId: currentPlayerData.user_id[0],
+      username: playerData.username[i],
     }
   }
 
   if (game.currentPlayer &&  (Math.round(Date.now() / 1000) - game.currentPlayer.startTime) > game.turnTime) {
-    // change the turn
-    console.log("Changing turn");
+    if (playerId && playerSequenceNumber) {
+      if (game.currentPlayer.playerId == playerId && game.currentPlayer.sequenceNumber == playerSequenceNumber) {
+        axios.get(`http://sql.lavro.ru/call.php`, {
+          params: {
+            db: config.dbName,
+            pname: "changePlayerTurn",
+            p1: playerSequenceNumber,
+            p2: gameCode,
+            p3: playerId
+          },
+          timeout: 30000,
+        })
+        .then((response) => {
+          console.log("Player turn changed!")
+        })
+        .catch((error) => {});
+      }
+    }
   }
 
   return res.send(game);
