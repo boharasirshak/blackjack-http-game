@@ -12,8 +12,7 @@ interface TableProps {
 }
 
 const Table = ({ initialGame, initialPlayer }: TableProps) => {
-  const BACKEND_URL =
-    (import.meta.env.VITE_BACKEND_URL as string) || "http://172.105.41.223";
+  const BACKEND_URL = "http://172.105.41.223";
 
   const [mainPlayer, setMainPlayer] = useState<IPlayer | undefined>(
     initialPlayer

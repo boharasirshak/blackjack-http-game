@@ -14,7 +14,7 @@ interface LoginForm {
 
 const Login = () => {
   document.title = "Блэкджек - Вход в систему";
-  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL as string || "http://172.105.41.223";
+  const BACKEND_URL = "http://172.105.41.223" || "http://172.105.41.223";
   
   const [token, setToken] = useLocalStorageString("token");
   if (token) {
