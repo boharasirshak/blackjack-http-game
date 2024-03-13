@@ -10,7 +10,7 @@ import "./Game.css";
 
 
 const Game = () => {
-  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL ?? "http://sirshak.ddns.net" || "http://sirshak.ddns.net";
+  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL ?? "http://sirshak.ddns.net";
   const token = localStorage.getItem("token");
   const decode = jwtDecode<IPlayer>(token!);
   const [game, setGame] = useState<IGame>();

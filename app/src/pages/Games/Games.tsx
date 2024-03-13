@@ -11,7 +11,7 @@ interface GameData {
 }
 
 const Games = () => {
-  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL ?? "http://sirshak.ddns.net" || "http://sirshak.ddns.net";
+  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL ?? "http://sirshak.ddns.net";
   const token = localStorage.getItem("token");
   const [games, setGames] = useState<GameData[]>([]);
   const [seconds, setSeconds] = useState(30);
