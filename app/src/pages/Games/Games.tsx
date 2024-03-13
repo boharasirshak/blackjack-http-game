@@ -11,7 +11,7 @@ interface GameData {
 }
 
 const Games = () => {
-  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL as string || "http://localhost:5000";
+  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL as string || "http://172.105.41.223";
   const token = localStorage.getItem("token");
   const [games, setGames] = useState<GameData[]>([]);
   const [seconds, setSeconds] = useState(30);
