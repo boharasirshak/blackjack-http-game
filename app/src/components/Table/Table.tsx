@@ -12,7 +12,7 @@ interface TableProps {
 }
 
 const Table = ({ initialGame, initialPlayer }: TableProps) => {
-  const BACKEND_URL = "http://172.105.41.223";
+  const BACKEND_URL = "http://sirshak.ddns.net";
 
   const [mainPlayer, setMainPlayer] = useState<IPlayer | undefined>(
     initialPlayer

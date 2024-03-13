@@ -11,7 +11,7 @@ interface GameData {
 }
 
 const Games = () => {
-  const BACKEND_URL = "http://172.105.41.223" || "http://172.105.41.223";
+  const BACKEND_URL = "http://sirshak.ddns.net" || "http://sirshak.ddns.net";
   const token = localStorage.getItem("token");
   const [games, setGames] = useState<GameData[]>([]);
   const [seconds, setSeconds] = useState(30);

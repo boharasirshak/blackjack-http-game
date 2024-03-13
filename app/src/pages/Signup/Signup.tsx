@@ -15,7 +15,7 @@ interface SignupForm {
 
 const Signup = () => {
   document.title = "Блэкджек - Регистрация";
-  const BACKEND_URL = "http://172.105.41.223" || "http://172.105.41.223";
+  const BACKEND_URL = "http://sirshak.ddns.net" || "http://sirshak.ddns.net";
 
   const [token, setToken] = useLocalStorageString("token");
   if (token) {
