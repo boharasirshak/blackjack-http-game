@@ -7,6 +7,13 @@ BEGIN
     SELECT * FROM games WHERE code = p_game_code;
 END;
 
+DROP PROCEDURE IF EXISTS getAllGames;
+CREATE PROCEDURE getAllGames()
+COMMENT 'Retrieve details of all games available in the database without any input parameters.'
+BEGIN
+    SELECT * FROM games;
+END;
+
 DROP PROCEDURE IF EXISTS getGameData;
 CREATE PROCEDURE getGameData(IN p_game_code VARCHAR(16))
 COMMENT 'Retrieve details of a game, its players and their cards using its unique game code, 
