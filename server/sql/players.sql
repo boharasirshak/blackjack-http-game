@@ -1,282 +1,233 @@
--- Active: 1707734547291@@127.0.0.1@3306
+-- Active: 1709286938507@@127.0.0.1@3306@blackjack
 DROP PROCEDURE IF EXISTS getAPlayer;
-CREATE PROCEDURE getAPlayer(IN i_playerId INT)
-COMMENT 'Retrieve player details by their ID, i_playerId: The ID of the player.'
+CREATE PROCEDURE getAPlayer(IN p_player_id INT)
+COMMENT 'Retrieve player details by their ID, 
+        p_player_id: The ID of the player.'
 BEGIN
-    SELECT * FROM players WHERE id = i_playerId;
+    SELECT * FROM players WHERE id = p_player_id;
 END;
 
+
 DROP PROCEDURE IF EXISTS getPlayerByUserId;
-CREATE PROCEDURE getPlayerByUserId(IN i_userId INT)
+CREATE PROCEDURE getPlayerByUserId(IN p_user_id INT)
 COMMENT 'Retrieve player details by their user ID, 
-         i_userId: The user ID associated with the player.'
+         p_user_id: The user ID associated with the player.'
 BEGIN
-    SELECT * FROM players WHERE userId = i_userId;
+    SELECT * FROM players WHERE user_id = p_user_id;
 END;
 
 DROP PROCEDURE IF EXISTS getPlayerByGameId;
-CREATE PROCEDURE getPlayerByGameId(IN i_gameId INT)
+CREATE PROCEDURE getPlayerByGameId(IN p_game_id INT)
 COMMENT 'Retrieve players by their game ID, 
-        i_gameId: The ID of the game.'
+        p_game_id: The ID of the game.'
 BEGIN
-    SELECT * FROM players WHERE gameId = i_gameId;
+    SELECT * FROM players WHERE game_id = p_game_id;
 END;
 
 DROP PROCEDURE IF EXISTS getPlayerByUserIdAndGameId;
-CREATE PROCEDURE getPlayerByUserIdAndGameId(IN i_userId INT, IN i_gameId INT)
+CREATE PROCEDURE getPlayerByUserIdAndGameId(IN p_user_id INT, IN p_game_id INT)
 COMMENT 'Retrieve a player by both their user ID and game ID, 
-        i_userId: The user ID, 
-        i_gameId: The game ID.'
+        p_user_id: The user ID, 
+        p_game_id: The game ID.'
 BEGIN
-    SELECT * FROM players WHERE userId = i_userId AND gameId = i_gameId;
+    SELECT * FROM players WHERE user_id = p_user_id AND game_id = p_game_id;
 END;
-
-
 
 
 DROP PROCEDURE IF EXISTS createPlayer;
 CREATE PROCEDURE createPlayer(
-    IN p_gameId INT, 
-    IN p_userId INT,
-    IN p_name VARCHAR(50),
-    IN p_balance INT,
-    OUT playerId INT
+    IN p_game_id INT, 
+    IN p_user_id INT,
+    OUT o_player_id INT
 )
 COMMENT 'Create a player with game ID, user ID, name, and bet. 
         Returns new player ID, 
-        p_gameId: Game ID, 
-        p_userId: User ID, 
-        p_name: Name, 
-        p_balance: Balance.'
+        p_game_id: Game ID, 
+        p_user_id: User ID.'
 BEGIN
     -- Check for the user 
-    DECLARE v_userExists INT DEFAULT 0;
-    DECLARE v_gameExists INT DEFAULT 0;
-    DECLARE v_playerId INT;
+    DECLARE v_user_exists INT DEFAULT 0;
+    DECLARE v_game_exists INT DEFAULT 0;
+    DECLARE v_player_id INT;
+    DECLARE v_sequence_number INT;
+
+    -- Generate a random number between 1 and INT_MAX (2147483647 - 2) to be stored as sequence
+    SET v_sequence_number = FLOOR(RAND() * 2147483645) + 1;
 
     -- Check if the user exists
-    SELECT COUNT(*) INTO v_userExists FROM users WHERE id = p_userId;
-    IF v_userExists = 0 THEN 
+    SELECT COUNT(*) INTO v_user_exists FROM users WHERE id = p_user_id;
+    IF v_user_exists = 0 THEN 
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'User not found';
     END IF;
 
     -- Check if the game exists
-    SELECT COUNT(*) INTO v_gameExists FROM games WHERE id = p_gameId;
-    IF v_gameExists = 0 THEN 
+    SELECT COUNT(*) INTO v_game_exists FROM games WHERE id = p_game_id;
+    IF v_game_exists = 0 THEN 
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Game not found';
     END IF;
 
     -- Create the player
-    INSERT INTO players (gameId, userId, name, balance) VALUES (p_gameId, p_userId, p_name, p_balance);
+    INSERT INTO players (game_id, user_id, sequence_number) 
+    VALUES (p_game_id, p_user_id, v_sequence_number);
 
-    SET playerId = LAST_INSERT_ID();
+    SET o_player_id = LAST_INSERT_ID();
 
     SELECT 'Player created successfully' AS message;
 END;
 
-
 DROP PROCEDURE IF EXISTS deletePlayer;
-CREATE PROCEDURE deletePlayer(IN p_playerId INT, IN p_gameCode VARCHAR(20))
-COMMENT 'Delete a player and associated cards from a game, 
-        p_playerId: Player ID, 
-        p_gameCode: Game code.'
+CREATE PROCEDURE deletePlayer(IN p_player_id INT, IN p_game_code VARCHAR(20), IN p_balance INT)
+COMMENT 'Deletes a player from game, its cards, and adds/subtracts its balance to the user, 
+        p_player_id: The ID of the player, 
+        p_game_code: The game code, 
+        p_balance: The balance of the player.'
 BEGIN
-    DECLARE v_gameId INT;
-    DECLARE v_userId INT;
-    DECLARE v_playerBalance INT;
-    DECLARE v_playerExists INT DEFAULT 0;
-    DECLARE v_gameExists INT DEFAULT 0;
-    DECLARE v_playersCount INT;
+    DECLARE v_player_exists INT DEFAULT 0;
+    DECLARE v_user_id INT;
+    DECLARE v_game_id INT;
+    DECLARE v_players_count INT;
+    DECLARE v_current_player_id INT;
+    DECLARE v_current_player_pid INT;
+    DECLARE v_players_sequence INT;
 
     -- Check if the player exists
-    SELECT COUNT(*), userId, balance INTO v_playerExists, v_userId, v_playerBalance FROM players WHERE id = p_playerId;
-    IF v_playerExists = 0 THEN 
+    SELECT COUNT(*) INTO v_player_exists FROM players WHERE id = p_player_id;
+    IF v_player_exists = 0 THEN 
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Player not found';
     END IF;
 
-    -- Check if the game exists using gameCode and get its ID and playersCount
-    SELECT id, playersCount INTO v_gameId, v_playersCount FROM games WHERE code = p_gameCode;
-    IF v_gameId IS NULL THEN 
+    -- Check if the game exists using game_code and get its ID 
+    SELECT id INTO v_game_id FROM games WHERE code = p_game_code;
+    IF v_game_id IS NULL THEN 
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Game not found';
     END IF;
 
-    -- Delete player's cards
-    DELETE FROM gamePlayerCards WHERE playerId = p_playerId AND gameCode = p_gameCode;
+    -- Get the number of players in the game
+    SELECT COUNT(*) INTO v_players_count FROM players WHERE game_id = v_game_id;
 
-    -- Delete the player
-    DELETE FROM players WHERE id = p_playerId AND gameId = v_gameId;
+    -- Get the user ID of the player
+    SELECT user_id, sequence_number INTO v_user_id, v_players_sequence FROM players WHERE id = p_player_id;
 
-    -- Add the player's balance to the user's balance
-    UPDATE users SET 
-        balance = balance + v_playerBalance
-    WHERE id = v_userId;
-    
+    -- Delete the player's hands
+    DELETE FROM player_hands WHERE player_id = p_player_id;
 
-    -- If the player is the last player in the game, delete the game
-    IF v_playersCount = 1 THEN
-        DELETE FROM games WHERE id = v_gameId;
+    -- Update the user balance
+    UPDATE users SET balance = balance + p_balance WHERE id = v_user_id;
+
+    -- If the player was the last one in the game
+    IF v_players_count = 1 THEN
+        DELETE FROM current_players WHERE player_id = p_player_id;
+        DELETE FROM players WHERE id = p_player_id;
+        DELETE FROM games WHERE id = v_game_id;
     ELSE
-        -- Otherwise, decrement the playersCount
-        UPDATE games SET playersCount = playersCount - 1 WHERE id = v_gameId;
+        -- More than one player in the game, might need to handle turn change
+        SELECT id, player_id INTO v_current_player_id, v_current_player_pid FROM current_players 
+        WHERE player_id = p_player_id;
+
+        IF v_current_player_pid = p_player_id THEN
+            CALL changePlayerTurn(v_players_sequence, p_game_code, p_player_id);
+        END IF;
+        
+        DELETE FROM players WHERE id = p_player_id;
     END IF;
 
-    -- Indicating successful deletion
-    SELECT 'Player and associated cards deleted successfully' AS message;
+    SELECT 'Player deleted successfully' AS message;
 END;
-
-
-DROP PROCEDURE IF EXISTS updatePlayerReadyState;
-CREATE PROCEDURE updatePlayerReadyState(IN p_playerId INT, IN p_gameCode VARCHAR(20), IN p_ready VARCHAR(10))
-COMMENT 'Update a player ready state in a game, 
-        p_playerId: Player ID, 
-        p_gameCode: Game code, 
-        p_ready: New ready state.'
-BEGIN
-    DECLARE v_gameId INT;
-    DECLARE v_playerExists INT DEFAULT 0;
-    DECLARE v_gameExists INT DEFAULT 0;
-    DECLARE v_isReady INT;
-
-    -- Check if the player exists
-    SELECT COUNT(*) INTO v_playerExists FROM players WHERE id = p_playerId;
-    IF v_playerExists = 0 THEN 
-        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Player not found';
-    END IF;
-
-    -- Check if the game exists using gameCode and get its ID
-    SELECT id INTO v_gameId FROM games WHERE code = p_gameCode LIMIT 1;
-    IF v_gameId IS NULL THEN 
-        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Game not found';
-    END IF;
-
-    -- Determine the ready state based on input
-    IF p_ready IN ('1', 'ready', 'true') THEN
-        SET v_isReady = 1;
-
-    ELSEIF p_ready IN ('0', 'not ready', 'false') THEN
-        SET v_isReady = 0;
-
-    ELSE
-        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'ready must be a boolean or a string of ''ready'' or ''not ready''';
-    END IF;
-
-    -- Update the player's ready state
-    UPDATE players SET ready = v_isReady WHERE id = p_playerId;
-
-    SELECT 'Player ready state updated successfully' AS message;
-END;
-
 
 DROP PROCEDURE IF EXISTS updatePlayerStayState;
-CREATE PROCEDURE updatePlayerStayState(IN p_playerId INT, IN p_gameCode VARCHAR(20), IN p_stay VARCHAR(10))
-COMMENT 'Update a player stay state in a game, 
-        p_playerId: Player ID, 
-        p_gameCode: Game code, 
-        p_stay: New stay state.'
+CREATE PROCEDURE updatePlayerStayState(IN p_player_id INT, IN p_stay BOOLEAN)
+COMMENT 'Update the stay state of a player, 
+        p_player_id: The ID of the player, 
+        p_stay: The new stay state.'
 BEGIN
-    DECLARE v_gameId INT;
-    DECLARE v_playerExists INT DEFAULT 0;
-    DECLARE v_gameExists INT DEFAULT 0;
-    DECLARE v_isStay INT;
+    DECLARE v_player_exists INT DEFAULT 0;
 
     -- Check if the player exists
-    SELECT COUNT(*) INTO v_playerExists FROM players WHERE id = p_playerId;
-    IF v_playerExists = 0 THEN 
+    SELECT COUNT(*) INTO v_player_exists FROM players WHERE id = p_player_id;
+    IF v_player_exists = 0 THEN 
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Player not found';
     END IF;
 
-    -- Check if the game exists using gameCode and get its ID
-    SELECT id INTO v_gameId FROM games WHERE code = p_gameCode LIMIT 1;
-    IF v_gameId IS NULL THEN 
-        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Game not found';
-    END IF;
-
-    -- Determine the ready state based on input
-    IF p_stay IN ('1', 'stay', 'true') THEN
-        SET v_isStay = 1;
-
-    ELSEIF p_stay IN ('0', 'not stay', 'false') THEN
-        SET v_isStay = 0;
-
-    ELSE
-        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'stay must be a boolean or a string of ''stay'' or ''not stay''';
-    END IF;
-
-    -- Update the player's ready state
-    UPDATE players SET stay = v_isStay WHERE id = p_playerId;
+    -- Update the stay state
+    UPDATE players SET stay = p_stay WHERE id = p_player_id;
 
     SELECT 'Player stay state updated successfully' AS message;
 END;
 
 
-DROP PROCEDURE IF EXISTS updatePlayerOutcome;
-CREATE PROCEDURE updatePlayerOutcome(
-    IN p_playerId INT, 
-    IN p_outcome VARCHAR(20),
-    IN p_gameId INT
+DROP PROCEDURE IF EXISTS changePlayerTurn;
+CREATE PROCEDURE changePlayerTurn(
+    IN p_current_sequence_number INT,
+    IN p_game_code VARCHAR(20), 
+    IN p_player_id INT
 )
-COMMENT 'Update a player outcome in a game and also set its balance,
-        p_playerId: Player ID, 
-        p_outcome: The outcome of the player'
+COMMENT 'Changes the turn of the player in the game, 
+        p_current_sequence_number: The current sequence number of the player, 
+        p_game_code: Unique game code, 
+        p_player_id: The ID of the player.'
 BEGIN
-    DECLARE v_playerExists INT DEFAULT 0;
-    DECLARE v_gameBet INT DEFAULT 0;
-    DECLARE v_playersCount INT DEFAULT 0;
-    DECLARE v_playerBalance INT DEFAULT 0;
-    DECLARE v_deltaBalance INT DEFAULT 0;
+    DECLARE v_game_id INT;
+    DECLARE v_next_player_id INT DEFAULT NULL;
+    DECLARE v_next_sequence_number INT;
+    DECLARE v_players_count INT;
+    DECLARE v_current_player_id INT;
+    DECLARE v_score INT;
+    DECLARE finished INT DEFAULT 0;
 
-    -- Check if the player exists
-    SELECT COUNT(*) INTO v_playerExists FROM players WHERE id = p_playerId;
-    IF v_playerExists = 0 THEN 
-        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Player not found';
+    -- Get the game ID
+    SELECT id INTO v_game_id FROM games WHERE code = p_game_code;
+    IF v_game_id IS NULL THEN 
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Game not found';
     END IF;
-
-    -- Get the game variables
-    SELECT bet, playersCount INTO v_gameBet, v_playersCount FROM games WHERE id = p_gameId;
-
-    -- Get the player
-    SELECT balance INTO v_playerBalance FROM players WHERE id = p_playerId;
-
-    IF p_outcome = 'WINNER' THEN
-        UPDATE players SET 
-            balance = balance + (v_gameBet * v_playersCount)
-        WHERE id = p_playerId;
-
-        UPDATE players SET
-            balance = balance - v_gameBet
-        WHERE id != p_playerId AND gameId = p_gameId;
     
-    ELSEIF p_outcome = 'BUSTED' THEN
-        UPDATE players SET
-            balance = balance - v_gameBet
-        WHERE id = p_playerId;
+    -- Initialize loop variables
+    SET v_next_sequence_number = p_current_sequence_number + 1;
 
+    -- Loop to find the next player
+    player_loop: LOOP
+        -- Attempt to find the next player who has not stayed
+        SELECT id INTO v_next_player_id FROM players
+        WHERE game_id = v_game_id 
+        AND sequence_number >= v_next_sequence_number
+        AND stay = FALSE
+        ORDER BY sequence_number ASC
+        LIMIT 1;
+        
+        -- If no player is found and it's the first loop iteration, try from the start
+        IF v_next_player_id IS NULL AND finished = 0 THEN
+            SET v_next_sequence_number = 0; -- Reset to start from the first player
+            SET finished = 1; -- Ensure the loop can finish if no valid players are found
+            ITERATE player_loop;
+        END IF;
+        
+        -- Exit loop if no valid next player
+        IF v_next_player_id IS NULL THEN
+            LEAVE player_loop;
+        END IF;
+        
+        -- Calculate or retrieve the player's score.
+        CALL getTotalScore(v_next_player_id, @player_score);
+        SET v_score = @player_score; -- Retrieve the score from the session variable
+        
+        -- Check if the player is busted (>21). If so, skip them.
+        IF v_score > 21 THEN
+            SET v_next_sequence_number = v_next_sequence_number + 1;
+            ITERATE player_loop;
+        END IF;
+
+        -- If a valid player is found, exit the loop
+        LEAVE player_loop;
+    END LOOP player_loop;
+
+    -- Update or insert the current player
+    IF v_next_player_id IS NOT NULL THEN
+        SELECT COUNT(*) INTO v_players_count FROM current_players WHERE player_id IN (SELECT id FROM players WHERE game_id = v_game_id);
+        
+        IF v_players_count = 0 THEN
+            INSERT INTO current_players (player_id, start_time) VALUES (v_next_player_id, UNIX_TIMESTAMP());
+        ELSE
+            SELECT id INTO v_current_player_id FROM current_players WHERE player_id IN (SELECT id FROM players WHERE game_id = v_game_id);
+            UPDATE current_players SET player_id = v_next_player_id, start_time = UNIX_TIMESTAMP() WHERE id = v_current_player_id;
+        END IF;
     END IF;
-
-    -- Update the player's outcome
-    UPDATE players SET outcome = p_outcome WHERE id = p_playerId;
-
-    SELECT 'Player outcome updated successfully' AS message;
 END;
-
-
-DROP PROCEDURE IF EXISTS updatePlayerScore;
-CREATE PROCEDURE updatePlayerScore(IN p_playerId INT, IN p_score INT)
-COMMENT 'Update a player score in a game 
-        p_playerId: Player ID, 
-        p_score: The player score'
-BEGIN
-    DECLARE v_playerExists INT DEFAULT 0;
-
-    -- Check if the player exists
-    SELECT COUNT(*) INTO v_playerExists FROM players WHERE id = p_playerId;
-    IF v_playerExists = 0 THEN 
-        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Player not found';
-    END IF;
-
-    -- Update the player's score
-    UPDATE players SET score = p_score WHERE id = p_playerId;
-
-    SELECT 'Player score updated successfully' AS message;
-END;
-
