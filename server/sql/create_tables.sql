@@ -44,7 +44,6 @@ CREATE TABLE IF NOT EXISTS cards (
 );
 
 CREATE TABLE IF NOT EXISTS player_hands (
-  id INT AUTO_INCREMENT PRIMARY KEY,
   player_id INT NOT NULL,
   card_id INT NOT NULL,
   FOREIGN KEY (player_id) REFERENCES players(id),

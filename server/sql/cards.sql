@@ -66,21 +66,6 @@ BEGIN
     END IF;
 END;
 
-DROP PROCEDURE IF EXISTS getCards;
-CREATE PROCEDURE getCards()
-COMMENT 'Procedure to get all the 52 card from the cards table.'
-BEGIN
-    SELECT * FROM cards;
-END;
-
-DROP PROCEDURE IF EXISTS getACard;
-CREATE PROCEDURE getACard(IN i_cardId INT)
-COMMENT 'Procreudre to get a single card from the cards table using cardId
-         i_cardId INT - the card id'
-BEGIN
-    SELECT * FROM cards WHERE id = i_cardId;
-END;
-
 DROP PROCEDURE IF EXISTS getTotalScore;
 CREATE PROCEDURE getTotalScore(player_id INT, OUT total_score INT)
 COMMENT 'Procedure to calculate the total score of a player in a game
@@ -100,7 +85,7 @@ BEGIN
     -- Calculate the total value of non-Ace cards
     SELECT SUM(CASE 
                  WHEN cards.value IN ('J', 'Q', 'K') THEN 10
-                 ELSE IF(cards.value = 'A', 0, CAST(cards.value AS UNSIGNED)) -- Assuming numeric values for cards
+                 ELSE IF(cards.value = 'A', 0, CAST(cards.value AS UNSIGNED))
                END) INTO other_cards_total
     FROM player_hands
     JOIN cards ON player_hands.card_id = cards.id

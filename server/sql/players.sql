@@ -1,38 +1,4 @@
 -- Active: 1709286938507@@127.0.0.1@3306@blackjack
-DROP PROCEDURE IF EXISTS getAPlayer;
-CREATE PROCEDURE getAPlayer(IN p_player_id INT)
-COMMENT 'Retrieve player details by their ID, 
-        p_player_id: The ID of the player.'
-BEGIN
-    SELECT * FROM players WHERE id = p_player_id;
-END;
-
-
-DROP PROCEDURE IF EXISTS getPlayerByUserId;
-CREATE PROCEDURE getPlayerByUserId(IN p_user_id INT)
-COMMENT 'Retrieve player details by their user ID, 
-         p_user_id: The user ID associated with the player.'
-BEGIN
-    SELECT * FROM players WHERE user_id = p_user_id;
-END;
-
-DROP PROCEDURE IF EXISTS getPlayerByGameId;
-CREATE PROCEDURE getPlayerByGameId(IN p_game_id INT)
-COMMENT 'Retrieve players by their game ID, 
-        p_game_id: The ID of the game.'
-BEGIN
-    SELECT * FROM players WHERE game_id = p_game_id;
-END;
-
-DROP PROCEDURE IF EXISTS getPlayerByUserIdAndGameId;
-CREATE PROCEDURE getPlayerByUserIdAndGameId(IN p_user_id INT, IN p_game_id INT)
-COMMENT 'Retrieve a player by both their user ID and game ID, 
-        p_user_id: The user ID, 
-        p_game_id: The game ID.'
-BEGIN
-    SELECT * FROM players WHERE user_id = p_user_id AND game_id = p_game_id;
-END;
-
 
 DROP PROCEDURE IF EXISTS createPlayer;
 CREATE PROCEDURE createPlayer(
@@ -154,7 +120,6 @@ BEGIN
     SELECT 'Player stay state updated successfully' AS message;
 END;
 
-
 DROP PROCEDURE IF EXISTS changePlayerTurn;
 CREATE PROCEDURE changePlayerTurn(
     IN p_current_sequence_number INT,
@@ -173,6 +138,7 @@ BEGIN
     DECLARE v_current_player_id INT;
     DECLARE v_score INT;
     DECLARE finished INT DEFAULT 0;
+    DECLARE v_all_stayed_or_busted INT DEFAULT 0;
 
     -- Get the game ID
     SELECT id INTO v_game_id FROM games WHERE code = p_game_code;
@@ -193,11 +159,17 @@ BEGIN
         ORDER BY sequence_number ASC
         LIMIT 1;
         
-        -- If no player is found and it's the first loop iteration, try from the start
-        IF v_next_player_id IS NULL AND finished = 0 THEN
-            SET v_next_sequence_number = 0; -- Reset to start from the first player
-            SET finished = 1; -- Ensure the loop can finish if no valid players are found
-            ITERATE player_loop;
+         -- If no player is found, check if we've completed a loop
+        IF v_next_player_id IS NULL THEN
+            IF finished = 1 THEN
+                -- After one full loop, if no eligible player is found
+                SET v_all_stayed_or_busted = 1;
+                LEAVE player_loop;
+            ELSE
+                SET v_next_sequence_number = 0; -- Reset to start from the first player
+                SET finished = 1; -- Indicate we've completed a loop
+                ITERATE player_loop;
+            END IF;
         END IF;
         
         -- Exit loop if no valid next player
@@ -219,15 +191,25 @@ BEGIN
         LEAVE player_loop;
     END LOOP player_loop;
 
+     -- Handle no eligible next player found after checking all
+    IF v_all_stayed_or_busted = 1 THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'All players stayed or are busted. Turn cannot be changed.';
+    END IF;
+
     -- Update or insert the current player
     IF v_next_player_id IS NOT NULL THEN
-        SELECT COUNT(*) INTO v_players_count FROM current_players WHERE player_id IN (SELECT id FROM players WHERE game_id = v_game_id);
+        SELECT COUNT(*) INTO v_players_count FROM current_players 
+        WHERE player_id IN (SELECT id FROM players WHERE game_id = v_game_id);
         
         IF v_players_count = 0 THEN
             INSERT INTO current_players (player_id, start_time) VALUES (v_next_player_id, UNIX_TIMESTAMP());
         ELSE
-            SELECT id INTO v_current_player_id FROM current_players WHERE player_id IN (SELECT id FROM players WHERE game_id = v_game_id);
-            UPDATE current_players SET player_id = v_next_player_id, start_time = UNIX_TIMESTAMP() WHERE id = v_current_player_id;
+            SELECT id INTO v_current_player_id FROM current_players 
+            WHERE player_id IN (SELECT id FROM players WHERE game_id = v_game_id) LIMIT 1;
+
+            UPDATE current_players 
+                SET player_id = v_next_player_id, start_time = UNIX_TIMESTAMP() 
+            WHERE id = v_current_player_id;
         END IF;
     END IF;
 END;

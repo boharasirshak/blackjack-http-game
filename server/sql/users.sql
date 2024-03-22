@@ -15,14 +15,6 @@ BEGIN
     END IF;
 END;
 
-DROP PROCEDURE IF EXISTS calculateHash;
-CREATE PROCEDURE calculateHash(IN p_password VARCHAR(255), OUT o_password_hash VARCHAR(255))
-COMMENT 'Calculates the SHA256 hash of a password and puts it in the output variable,
-        p_password - the password to hash'
-BEGIN
-    SET o_password_hash = SHA2(p_password, 256);
-END;
-
 
 DROP PROCEDURE IF EXISTS signup;
 CREATE PROCEDURE signup(IN p_username VARCHAR(100), IN p_password VARCHAR(255))
