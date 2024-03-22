@@ -4,7 +4,7 @@ CREATE PROCEDURE addRandomGamePlayerCard(
     IN p_game_code VARCHAR(20),
     IN p_player_id INT
 )
-COMMENT 'Add a random card to a player in a game, 
+COMMENT 'Add a random card to a player in a game performing several checks, 
         p_game_code: The game code identifying the game, 
         p_player_id: The ID of the player.'
 BEGIN
@@ -44,6 +44,10 @@ BEGIN
     LIMIT 1;
 
     -- Check if it's the player's turn
+    IF v_current_turn_player_id IS NULL THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Game is not started';
+    END IF;
+
     IF NOT v_current_turn_player_id = p_player_id THEN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'It is not the player''s turn';
     END IF;
