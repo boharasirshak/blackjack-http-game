@@ -223,6 +223,9 @@ END;
 
 DROP PROCEDURE IF EXISTS findWinner;
 CREATE PROCEDURE findWinner(IN game_id INT, OUT winner_id INT)
+COMMENT 'Finds the winner of a game based on the total score of players, 
+        game_id: The ID of the game, 
+        OUT winner_id: The ID of the winner.'
 BEGIN
     DECLARE player_id INT;
     DECLARE player_stay BOOLEAN;
