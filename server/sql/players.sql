@@ -51,11 +51,12 @@ BEGIN
     DECLARE v_player_exists INT DEFAULT 0;
     DECLARE v_user_id INT;
     DECLARE v_game_id INT;
-    DECLARE v_players_count INT;
     DECLARE v_current_player_id INT;
     DECLARE v_current_player_pid INT;
     DECLARE v_players_sequence INT;
-    DECLARE v_has_current_turn INT DEFAULT 0;
+    DECLARE v_players_count INT DEFAULT 1;
+    DECLARE v_game_player_limit INT DEFAULT 2;
+    DECLARE v_winner_id INT DEFAULT NULL;
 
     -- Check if the player exists
     SELECT COUNT(*) INTO v_player_exists FROM players WHERE id = p_player_id;
@@ -64,7 +65,7 @@ BEGIN
     END IF;
 
     -- Check if the game exists using game_code and get its ID 
-    SELECT id INTO v_game_id FROM games WHERE code = p_game_code;
+    SELECT id, players_limit INTO v_game_id, v_game_player_limit FROM games WHERE code = p_game_code;
     IF v_game_id IS NULL THEN 
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Game not found';
     END IF;
@@ -75,14 +76,16 @@ BEGIN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Player not in game';
     END IF;
 
-    -- Check if the player has the current turn
-    SELECT COUNT(*) INTO v_has_current_turn FROM current_players WHERE player_id = p_player_id;
-    IF v_has_current_turn = 0 THEN
-        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Player does not have the current turn';
-    END IF;
-
     -- Get the number of players in the game
     SELECT COUNT(*) INTO v_players_count FROM players WHERE game_id = v_game_id;
+
+     -- Call findWinner to determine if there is a winner
+    CALL findWinner(v_game_id, v_winner_id);
+
+    -- Disallow deleting player if the game has started but no winner is declared
+    IF v_game_player_limit = v_players_count AND v_winner_id IS NULL THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Game is running, cannot delete player unless there is a winner.';
+    END IF;
 
     -- Get the user ID of the player
     SELECT user_id, sequence_number INTO v_user_id, v_players_sequence FROM players WHERE id = p_player_id;
@@ -160,6 +163,7 @@ BEGIN
     DECLARE v_next_player_id INT DEFAULT NULL;
     DECLARE v_next_sequence_number INT;
     DECLARE v_players_count INT;
+    DECLARE v_player_exists INT DEFAULT 0;
     DECLARE v_current_player_id INT;
     DECLARE v_score INT;
     DECLARE finished INT DEFAULT 0;
@@ -170,6 +174,13 @@ BEGIN
     SELECT id INTO v_game_id FROM games WHERE code = p_game_code;
     IF v_game_id IS NULL THEN 
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Game not found';
+    END IF;
+
+    -- Check if the player exists
+    SELECT COUNT(*) INTO v_player_exists FROM players WHERE id = p_player_id;
+
+    IF v_player_exists = 0 THEN 
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Player not found';
     END IF;
 
     -- Check if the player has the current turn

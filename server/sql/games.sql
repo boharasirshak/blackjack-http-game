@@ -219,3 +219,69 @@ BEGIN
     -- Return the first player
     SELECT v_first_player_id, v_first_sequence_number;
 END;
+
+
+DROP PROCEDURE IF EXISTS findWinner;
+CREATE PROCEDURE findWinner(IN game_id INT, OUT winner_id INT)
+BEGIN
+    DECLARE player_id INT;
+    DECLARE player_stay BOOLEAN;
+    DECLARE player_score INT;
+    DECLARE highest_score INT DEFAULT 0;
+    DECLARE busted_players INT DEFAULT 0;
+    DECLARE non_busted_players INT DEFAULT 0;
+    DECLARE non_stayed_players INT DEFAULT 0;
+    DECLARE total_players INT DEFAULT 0;
+
+    DECLARE cur CURSOR FOR
+        SELECT players.id, players.stay
+        FROM players
+        WHERE players.game_id = game_id;
+        
+    DECLARE CONTINUE HANDLER FOR NOT FOUND SET player_id = NULL;
+
+    OPEN cur;
+
+    find_non_busted: LOOP
+        FETCH cur INTO player_id, player_stay;
+        IF player_id IS NULL THEN
+            LEAVE find_non_busted;
+        END IF;
+
+        CALL getTotalScore(player_id, @player_score);
+        IF @player_score > 21 THEN
+            SET busted_players = busted_players + 1;
+        ELSE
+            SET non_busted_players = non_busted_players + 1;
+            IF NOT player_stay THEN
+                SET non_stayed_players = non_stayed_players + 1;
+            END IF;
+            -- Keep track of the highest score and winner ID among non-busted players
+            IF @player_score > highest_score THEN
+                SET highest_score = @player_score;
+                SET winner_id = player_id;
+            END IF;
+        END IF;
+        SET total_players = total_players + 1;
+    END LOOP;
+
+    CLOSE cur;
+
+    -- Apply game logic to determine the winner
+    IF non_busted_players = 0 THEN
+        -- All players are busted
+        SET winner_id = NULL;
+    ELSEIF non_busted_players = 1 AND total_players > 1 THEN
+        -- Only one non-busted player
+        -- winner_id is already set
+        SELECT winner_id;
+    ELSEIF non_stayed_players = 0 THEN
+        -- All non-busted players have stayed, winner_id is already the highest scorer
+        -- No action needed as winner_id is already set
+        SELECT winner_id;
+    ELSE
+        -- If there's no clear winner based on the above conditions
+        SET winner_id = NULL;
+    END IF;
+
+END;
