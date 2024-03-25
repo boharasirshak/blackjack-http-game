@@ -55,6 +55,7 @@ BEGIN
     DECLARE v_current_player_id INT;
     DECLARE v_current_player_pid INT;
     DECLARE v_players_sequence INT;
+    DECLARE v_has_current_turn INT DEFAULT 0;
 
     -- Check if the player exists
     SELECT COUNT(*) INTO v_player_exists FROM players WHERE id = p_player_id;
@@ -66,6 +67,18 @@ BEGIN
     SELECT id INTO v_game_id FROM games WHERE code = p_game_code;
     IF v_game_id IS NULL THEN 
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Game not found';
+    END IF;
+
+    -- Check if the player is in the game
+    SELECT COUNT(*) INTO v_player_exists FROM players WHERE id = p_player_id AND game_id = v_game_id;
+    IF v_player_exists = 0 THEN 
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Player not in game';
+    END IF;
+
+    -- Check if the player has the current turn
+    SELECT COUNT(*) INTO v_has_current_turn FROM current_players WHERE player_id = p_player_id;
+    IF v_has_current_turn = 0 THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Player does not have the current turn';
     END IF;
 
     -- Get the number of players in the game
@@ -107,11 +120,23 @@ COMMENT 'Update the stay state of a player,
         p_stay: The new stay state.'
 BEGIN
     DECLARE v_player_exists INT DEFAULT 0;
+    DECLARE v_has_current_turn INT DEFAULT 0;
 
     -- Check if the player exists
     SELECT COUNT(*) INTO v_player_exists FROM players WHERE id = p_player_id;
     IF v_player_exists = 0 THEN 
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Player not found';
+    END IF;
+
+    -- Check if the player has the current turn
+    SELECT COUNT(*) INTO v_has_current_turn FROM current_players WHERE player_id = p_player_id;
+    IF v_has_current_turn = 0 THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Player does not have the current turn';
+    END IF;
+
+    -- Do not allow player to unstay their turn
+    IF p_stay = FALSE OR p_stay = 0 THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Player cannot unstay their turn at this version of game.';
     END IF;
 
     -- Update the stay state
@@ -139,11 +164,18 @@ BEGIN
     DECLARE v_score INT;
     DECLARE finished INT DEFAULT 0;
     DECLARE v_all_stayed_or_busted INT DEFAULT 0;
+    DECLARE v_has_current_turn INT DEFAULT 0;
 
     -- Get the game ID
     SELECT id INTO v_game_id FROM games WHERE code = p_game_code;
     IF v_game_id IS NULL THEN 
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Game not found';
+    END IF;
+
+    -- Check if the player has the current turn
+    SELECT COUNT(*) INTO v_has_current_turn FROM current_players WHERE player_id = p_player_id;
+    IF v_has_current_turn = 0 THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Player does not have the current turn';
     END IF;
     
     -- Initialize loop variables
