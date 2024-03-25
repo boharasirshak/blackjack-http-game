@@ -42,38 +42,55 @@ BEGIN
 END;
 
 DROP PROCEDURE IF EXISTS deletePlayer;
-CREATE PROCEDURE deletePlayer(IN p_player_id INT, IN p_game_code VARCHAR(20), IN p_balance INT)
+CREATE PROCEDURE deletePlayer(
+    IN p_token VARCHAR(255), 
+    IN p_game_code VARCHAR(20)
+)
 COMMENT 'Deletes a player from game, its cards, and adds/subtracts its balance to the user, 
-        p_player_id: The ID of the player, 
-        p_game_code: The game code, 
-        p_balance: The balance of the player.'
+        p_token: The token of the player, 
+        p_game_code: The game code.'
 BEGIN
     DECLARE v_player_exists INT DEFAULT 0;
+    DECLARE v_user_exists INT DEFAULT 0;
     DECLARE v_user_id INT;
     DECLARE v_game_id INT;
-    DECLARE v_current_player_id INT;
-    DECLARE v_current_player_pid INT;
-    DECLARE v_players_sequence INT;
+    DECLARE v_player_id INT;
+    DECLARE v_game_bet INT;
     DECLARE v_players_count INT DEFAULT 1;
     DECLARE v_game_player_limit INT DEFAULT 2;
     DECLARE v_winner_id INT DEFAULT NULL;
 
-    -- Check if the player exists
-    SELECT COUNT(*) INTO v_player_exists FROM players WHERE id = p_player_id;
-    IF v_player_exists = 0 THEN 
-        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Player not found';
+    -- Check if the token exists
+    SELECT user_id INTO v_user_id FROM tokens WHERE token = p_token;
+    IF v_user_id IS NULL THEN 
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'User not found';
     END IF;
 
-    -- Check if the game exists using game_code and get its ID 
-    SELECT id, players_limit INTO v_game_id, v_game_player_limit FROM games WHERE code = p_game_code;
+    -- Check if the user_id exists in the users table
+    SELECT COUNT(*) INTO v_user_exists FROM users WHERE id = v_user_id;
+    IF v_user_exists = 0 THEN 
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'User not found';
+    END IF;
+
+    -- Check if the user is a player in any game
+    SELECT COUNT(*) INTO v_player_exists FROM players WHERE user_id = v_user_id;
+    IF v_player_exists = 0 THEN 
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'User is not a player in any game';
+    END IF;
+
+     -- Check if the game exists using game_code and get its ID 
+    SELECT 
+        id, players_limit, bet INTO v_game_id, v_game_player_limit, v_game_bet 
+    FROM games WHERE code = p_game_code;
+
     IF v_game_id IS NULL THEN 
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Game not found';
     END IF;
 
-    -- Check if the player is in the game
-    SELECT COUNT(*) INTO v_player_exists FROM players WHERE id = p_player_id AND game_id = v_game_id;
-    IF v_player_exists = 0 THEN 
-        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Player not in game';
+    -- Get the player ID using the user ID and game code
+    SELECT id INTO v_player_id FROM players WHERE user_id = v_user_id AND game_id = v_game_id;
+    IF v_player_id IS NULL THEN 
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Player not found in the game';
     END IF;
 
     -- Get the number of players in the game
@@ -82,57 +99,86 @@ BEGIN
      -- Call findWinner to determine if there is a winner
     CALL findWinner(v_game_id, v_winner_id);
 
+    SELECT v_winner_id;
+
     -- Disallow deleting player if the game has started but no winner is declared
     IF v_game_player_limit = v_players_count AND v_winner_id IS NULL THEN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Game is running, cannot delete player unless there is a winner.';
     END IF;
 
-    -- Get the user ID of the player
-    SELECT user_id, sequence_number INTO v_user_id, v_players_sequence FROM players WHERE id = p_player_id;
-
     -- Delete the player's hands
-    DELETE FROM player_hands WHERE player_id = p_player_id;
+    DELETE FROM player_hands WHERE player_id = v_player_id;
 
     -- Update the user balance
-    UPDATE users SET balance = balance + p_balance WHERE id = v_user_id;
+    IF v_winner_id = v_user_id THEN
+        UPDATE users SET balance = balance + (v_game_bet * v_game_player_limit) WHERE id = v_user_id;
+    ELSE
+        UPDATE users SET balance = balance + p_balance WHERE id = v_user_id;
+    END IF;
 
-    -- If the player was the last one in the game
+    -- If the player was the last one in the game delete the game and the current player
     IF v_players_count = 1 THEN
-        DELETE FROM current_players WHERE player_id = p_player_id;
-        DELETE FROM players WHERE id = p_player_id;
+        DELETE FROM current_players WHERE player_id = v_player_id;
+        DELETE FROM players WHERE id = v_player_id;
         DELETE FROM games WHERE id = v_game_id;
     ELSE
-        -- More than one player in the game, might need to handle turn change
-        SELECT id, player_id INTO v_current_player_id, v_current_player_pid FROM current_players 
-        WHERE player_id = p_player_id;
-
-        IF v_current_player_pid = p_player_id THEN
-            CALL changePlayerTurn(v_players_sequence, p_game_code, p_player_id);
-        END IF;
-        
-        DELETE FROM players WHERE id = p_player_id;
+        -- Since we cannot delete a player if the game is running, we do not care about turn changes.
+        DELETE FROM players WHERE id = v_player_id;
     END IF;
 
     SELECT 'Player deleted successfully' AS message;
 END;
 
 DROP PROCEDURE IF EXISTS updatePlayerStayState;
-CREATE PROCEDURE updatePlayerStayState(IN p_player_id INT, IN p_stay BOOLEAN)
+CREATE PROCEDURE updatePlayerStayState(
+    IN p_token VARCHAR(255), 
+    IN p_game_code VARCHAR(20),
+    IN p_stay BOOLEAN
+)
 COMMENT 'Update the stay state of a player, 
-        p_player_id: The ID of the player, 
+        p_token: The token of the player, 
+        p_game_code: The game code,
         p_stay: The new stay state.'
 BEGIN
     DECLARE v_player_exists INT DEFAULT 0;
     DECLARE v_has_current_turn INT DEFAULT 0;
+    DECLARE v_user_exists INT DEFAULT 0;
+    DECLARE v_user_id INT;
+    DECLARE v_game_id INT;
+    DECLARE v_player_id INT;
 
-    -- Check if the player exists
-    SELECT COUNT(*) INTO v_player_exists FROM players WHERE id = p_player_id;
+    -- Check if the token exists
+    SELECT user_id INTO v_user_id FROM tokens WHERE token = p_token;
+    IF v_user_id IS NULL THEN 
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'User not found';
+    END IF;
+
+    -- Check if the user_id exists in the users table
+    SELECT COUNT(*) INTO v_user_exists FROM users WHERE id = v_user_id;
+    IF v_user_exists = 0 THEN 
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'User not found';
+    END IF;
+
+    -- Check if the user is a player in any game
+    SELECT COUNT(*) INTO v_player_exists FROM players WHERE user_id = v_user_id;
     IF v_player_exists = 0 THEN 
-        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Player not found';
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'User is not a player in any game';
+    END IF;
+
+    -- Check if the game exists using game_code and get its ID
+    SELECT id INTO v_game_id FROM games WHERE code = p_game_code;
+    IF v_game_id IS NULL THEN 
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Game not found';
+    END IF;
+
+    -- Get the player ID using the user ID and game code
+    SELECT id INTO v_player_id FROM players WHERE user_id = v_user_id AND game_id = v_game_id;
+    IF v_player_id IS NULL THEN 
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Player not found in the game';
     END IF;
 
     -- Check if the player has the current turn
-    SELECT COUNT(*) INTO v_has_current_turn FROM current_players WHERE player_id = p_player_id;
+    SELECT COUNT(*) INTO v_has_current_turn FROM current_players WHERE player_id = v_player_id;
     IF v_has_current_turn = 0 THEN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Player does not have the current turn';
     END IF;
@@ -150,16 +196,19 @@ END;
 
 DROP PROCEDURE IF EXISTS changePlayerTurn;
 CREATE PROCEDURE changePlayerTurn(
-    IN p_current_sequence_number INT,
     IN p_game_code VARCHAR(20), 
-    IN p_player_id INT
+    IN p_token VARCHAR(255)
 )
-COMMENT 'Changes the turn of the player in the game, 
-        p_current_sequence_number: The current sequence number of the player, 
+COMMENT 'Changes the turn of the player in the game,  
         p_game_code: Unique game code, 
-        p_player_id: The ID of the player.'
+        p_token: The token of the player.'
 BEGIN
+    DECLARE v_user_id INT;
+    DECLARE v_user_exists INT DEFAULT 0;
     DECLARE v_game_id INT;
+    DECLARE v_player_id INT;
+    DECLARE v_player_seq_number INT;
+
     DECLARE v_next_player_id INT DEFAULT NULL;
     DECLARE v_next_sequence_number INT;
     DECLARE v_players_count INT;
@@ -170,27 +219,46 @@ BEGIN
     DECLARE v_all_stayed_or_busted INT DEFAULT 0;
     DECLARE v_has_current_turn INT DEFAULT 0;
 
+    -- Check if the token exists
+    SELECT user_id INTO v_user_id FROM tokens WHERE token = p_token;
+    IF v_user_id IS NULL THEN 
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'User not found';
+    END IF;
+
+    -- Check if the user_id exists in the users table
+    SELECT COUNT(*) INTO v_user_exists FROM users WHERE id = v_user_id;
+    IF v_user_exists = 0 THEN 
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'User not found';
+    END IF;
+
+    -- Check if the user is a player in any game
+    SELECT COUNT(*) INTO v_player_exists FROM players WHERE user_id = v_user_id;
+    IF v_player_exists = 0 THEN 
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'User is not a player in any game';
+    END IF;
+
     -- Get the game ID
     SELECT id INTO v_game_id FROM games WHERE code = p_game_code;
     IF v_game_id IS NULL THEN 
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Game not found';
     END IF;
 
-    -- Check if the player exists
-    SELECT COUNT(*) INTO v_player_exists FROM players WHERE id = p_player_id;
-
-    IF v_player_exists = 0 THEN 
-        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Player not found';
+    -- Get the player ID and seq no using the user ID and game code
+    SELECT id, sequence_number INTO v_player_id, v_player_seq_number 
+    FROM players 
+    WHERE user_id = v_user_id AND game_id = v_game_id;
+    IF v_player_id IS NULL THEN 
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Player not found in the game';
     END IF;
 
     -- Check if the player has the current turn
-    SELECT COUNT(*) INTO v_has_current_turn FROM current_players WHERE player_id = p_player_id;
+    SELECT COUNT(*) INTO v_has_current_turn FROM current_players WHERE player_id = v_player_id;
     IF v_has_current_turn = 0 THEN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Player does not have the current turn';
     END IF;
     
     -- Initialize loop variables
-    SET v_next_sequence_number = p_current_sequence_number + 1;
+    SET v_next_sequence_number = v_player_seq_number + 1;
 
     -- Loop to find the next player
     player_loop: LOOP
@@ -223,6 +291,7 @@ BEGIN
         -- Calculate or retrieve the player's score.
         CALL getTotalScore(v_next_player_id, @player_score);
         SET v_score = @player_score; -- Retrieve the score from the session variable
+        SELECT v_score;
         
         -- Check if the player is busted (>21). If so, skip them.
         IF v_score > 21 THEN

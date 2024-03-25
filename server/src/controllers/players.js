@@ -13,9 +13,8 @@ async function deletePlayer(req, res, next) {
     params: {
       db: config.dbName,
       pname: "deletePlayer",
-      p1: playerId,
-      p2: gameCode,
-      p3: balance
+      p1: req.token,
+      p2: gameCode
     },
     timeout: 30000,
   });
@@ -32,8 +31,8 @@ async function deletePlayer(req, res, next) {
 }
 
 async function updatePlayerStay(req, res, next) {
-  let { playerId, stay } = req.body || req.query;
-  if (!playerId  || stay === undefined || stay === null) {
+  let { gameCode, playerId, stay } = req.body || req.query;
+  if (!gameCode || !playerId  || stay === undefined || stay === null) {
     return res.status(400).send({
       message: "playerId, gameCode and stay required in the body or query!",
     });
@@ -44,8 +43,9 @@ async function updatePlayerStay(req, res, next) {
     params: {
       db: config.dbName,
       pname: "updatePlayerStayState",
-      p1: playerId,
-      p2: stay,
+      p1: req.token,
+      p2: gameCode,
+      p2: stay
     },
     timeout: 30000,
   });

@@ -170,9 +170,8 @@ async function getAGame(req, res, next) {
           params: {
             db: config.dbName,
             pname: "changePlayerTurn",
-            p1: playerSequenceNumber,
-            p2: gameCode,
-            p3: playerId
+            p1: gameCode,
+            p2: req.token
           },
           timeout: 30000,
         })
@@ -185,8 +184,9 @@ async function getAGame(req, res, next) {
           params: {
             db: config.dbName,
             pname: "updatePlayerStayState",
-            p1: playerId,
-            p2: "1",
+            p1: req.token,
+            p2: gameCode,
+            p3: "1",
           },
           timeout: 30000,
         })
@@ -312,8 +312,8 @@ async function createGame(req, res, next) {
 }
 
 async function addGamePlayerCard(req, res, next) {
-  const { gameCode, playerId } = req.body;
-  if (!playerId || !gameCode ) {
+  const { gameCode } = req.body;
+  if (!gameCode || !req.token ) {
     return res.status(400).send({
       message: "playerId and gameCode are required!",
     });
@@ -324,7 +324,7 @@ async function addGamePlayerCard(req, res, next) {
       db: config.dbName,
       pname: "addRandomGamePlayerCard",
       p1: gameCode,
-      p2: playerId
+      p2: req.token
     },
     timeout: 30000,
   });
@@ -353,9 +353,8 @@ async function changePlayerTurn(req, res, next) {
     params: {
       db: config.dbName,
       pname: "changePlayerTurn",
-      p1: currentSequenceNumber,
-      p2: gameCode,
-      p3: playerId,
+      p1: gameCode,
+      p2: req.token,
     },
     timeout: 30000,
   });

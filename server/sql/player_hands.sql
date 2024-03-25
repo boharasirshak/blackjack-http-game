@@ -30,7 +30,7 @@ BEGIN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'User not found';
     END IF;
 
-    -- Check if the user is a player in the game
+    -- Check if the user is a player in any game
     SELECT COUNT(*) INTO v_player_exists FROM players WHERE user_id = v_user_id;
     IF v_player_exists = 0 THEN 
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'User is not a player in any game';
@@ -70,9 +70,13 @@ BEGIN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'It is not the player''s turn';
     END IF;
 
+    -- TODO: debug this
+
     -- Calculate the player's total score
     CALL getTotalScore(v_player_id, @v_total_score);
     SET v_total_score = @v_total_score;
+
+    SELECT v_total_score;
 
     -- Check if the player is busted
     IF v_total_score > 21 THEN

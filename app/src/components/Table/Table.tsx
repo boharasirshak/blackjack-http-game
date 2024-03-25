@@ -267,6 +267,7 @@ const Table = ({ initialGame, initialPlayer }: TableProps) => {
       .put(
         `${BACKEND_URL}/players/stay`,
         {
+          gameCode: game.code,
           playerId: mainPlayer?.id,
           stay: true,
         },

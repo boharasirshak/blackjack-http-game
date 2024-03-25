@@ -270,10 +270,13 @@ BEGIN
 
     CLOSE cur;
 
+    -- TODO: debug this.
+
     -- Apply game logic to determine the winner
     IF non_busted_players = 0 THEN
         -- All players are busted
         SET winner_id = NULL;
+        SELECT winner_id;
     ELSEIF non_busted_players = 1 AND total_players > 1 THEN
         -- Only one non-busted player
         -- winner_id is already set
@@ -285,6 +288,7 @@ BEGIN
     ELSE
         -- If there's no clear winner based on the above conditions
         SET winner_id = NULL;
+        SELECT winner_id;
     END IF;
 
 END;
