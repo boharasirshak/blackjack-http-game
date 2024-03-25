@@ -46,7 +46,11 @@
 }
 
 .button:disabled {
-  background-color: #ccc;
+  background-color: #ccc !important;
+}
+
+.red {
+  background-color: red !important;
 }
 
 .top, .bottom, .right, .left {
