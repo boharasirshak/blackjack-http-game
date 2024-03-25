@@ -357,6 +357,7 @@ const Table = ({ initialGame, initialPlayer }: TableProps) => {
       <button
         className="button"
         onClick={leavePlayer}
+        disabled={game.currentPlayer?.playerId !== mainPlayer?.id}
         style={{
           backgroundColor: "red",
         }}
