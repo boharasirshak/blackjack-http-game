@@ -6,6 +6,15 @@ COMMENT 'Login with username and password,
          p_password - The password of the user.'
 BEGIN
     DECLARE v_user_id INT;
+    
+    -- Check the length of the username and password
+    IF LENGTH(p_username) = 0 THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Username cannot be empty';
+    END IF;
+
+    IF LENGTH(p_password) = 0 THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Password cannot be empty';
+    END IF;
 
     -- find the user by username and password
     SELECT id INTO v_user_id FROM users WHERE username = p_username AND password = p_password LIMIT 1;
@@ -28,6 +37,15 @@ COMMENT 'Creates a new user with the username, password.
 BEGIN
     DECLARE v_user_id INT;
     DECLARE v_token VARCHAR(32);
+
+     -- Check the length of the username and password
+    IF LENGTH(p_username) = 0 THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Username cannot be empty';
+    END IF;
+
+    IF LENGTH(p_password) = 0 THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Password cannot be empty';
+    END IF;
     
     -- Check if the user already exists
     SELECT id INTO v_user_id FROM users WHERE username = p_username LIMIT 1;

@@ -6,6 +6,7 @@ CREATE PROCEDURE createPlayer(
     IN p_user_id INT,
     OUT o_player_id INT
 )
+SQL SECURITY INVOKER
 COMMENT 'Create a player with game ID, user ID, name, and bet. 
         Returns new player ID, 
         p_game_id: Game ID, 
