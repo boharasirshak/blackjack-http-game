@@ -104,6 +104,6 @@ BEGIN
         SET ace_count = ace_count - 1;
     END WHILE;
 
-    -- Set the session variable with the calculated total score
     SET @total_score = total_score;
+    SET total_score = @total_score;
 END;

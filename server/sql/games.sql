@@ -229,7 +229,7 @@ COMMENT 'Finds the winner of a game based on the total score of players,
 BEGIN
     DECLARE player_id INT;
     DECLARE player_stay BOOLEAN;
-    DECLARE player_score INT;
+    DECLARE total_score INT;
     DECLARE highest_score INT DEFAULT 0;
     DECLARE busted_players INT DEFAULT 0;
     DECLARE non_busted_players INT DEFAULT 0;
@@ -251,8 +251,8 @@ BEGIN
             LEAVE find_non_busted;
         END IF;
 
-        CALL getTotalScore(player_id, @player_score);
-        IF @player_score > 21 THEN
+        CALL getTotalScore(player_id, total_score);
+        IF @total_score > 21 THEN
             SET busted_players = busted_players + 1;
         ELSE
             SET non_busted_players = non_busted_players + 1;
@@ -260,8 +260,8 @@ BEGIN
                 SET non_stayed_players = non_stayed_players + 1;
             END IF;
             -- Keep track of the highest score and winner ID among non-busted players
-            IF @player_score > highest_score THEN
-                SET highest_score = @player_score;
+            IF @total_score > highest_score THEN
+                SET highest_score = @total_score;
                 SET winner_id = player_id;
             END IF;
         END IF;

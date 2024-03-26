@@ -342,10 +342,10 @@ async function addGamePlayerCard(req, res, next) {
 }
 
 async function changePlayerTurn(req, res, next) {
-  const {currentSequenceNumber, gameCode, playerId} = req.body;
-  if (!currentSequenceNumber || !gameCode || !playerId) {
+  const { gameCode} = req.body;
+  if (!gameCode) {
     return res.status(400).send({
-      message: "currentSequenceNumber, gameCode and playerId are required!",
+      message: "gameCode is required!",
     });
   }
   

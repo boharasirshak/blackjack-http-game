@@ -10,10 +10,10 @@ type CardProps = {
 const Card: React.FC<CardProps> = ({ value, suit, hidden }) => {
   const getColor = () => {
     if (suit === '♠' || suit === '♣') {
-      return 'black';
+      return 'card-black';
     }
     else {
-      return'red';
+      return 'card-red';
     }
   }
 

@@ -25,6 +25,7 @@ const Table = ({ initialGame, initialPlayer }: TableProps) => {
   const [currentTurn, setCurrentTurn] = useState<boolean>(false);
   const [canAddCard, setCanAddCard] = useState<boolean>(false);
   const [canClickStay, setCanClickStay] = useState<boolean>(false);
+  const [canLeaveGame, setCanLeaveGame] = useState<boolean>(false);
 
   const [isTimerSet, setIsTimerSet] = useState<boolean>(false);
   const [timer, setTimer] = useState<number>(0);
@@ -160,6 +161,25 @@ const Table = ({ initialGame, initialPlayer }: TableProps) => {
             ) {
               setCanClickStay(true);
             }
+
+            // game is not started
+            if (res.data.players.length !== res.data.playersLimit) {
+              setCanLeaveGame(true);
+            }
+
+            if (
+              res.data.playersLimit === res.data.players.length && // game is started
+              winner === null // no winner yet
+            ) {
+              setCanLeaveGame(false);
+            }
+
+            if(
+              res.data.players.length === res.data.playersLimit && // game is started 
+              winner !== null // winner is found
+            ) {
+              setCanLeaveGame(true);
+            }
           }
 
           // if someone is winner, we cannot add card
@@ -268,7 +288,6 @@ const Table = ({ initialGame, initialPlayer }: TableProps) => {
         `${BACKEND_URL}/players/stay`,
         {
           gameCode: game.code,
-          playerId: mainPlayer?.id,
           stay: true,
         },
         {
@@ -298,8 +317,6 @@ const Table = ({ initialGame, initialPlayer }: TableProps) => {
         `${BACKEND_URL}/games/turn`,
         {
           gameCode: game.code,
-          playerId: mainPlayer?.id,
-          currentSequenceNumber: mainPlayer?.sequenceNumber,
         },
         {
           headers: {
@@ -327,9 +344,7 @@ const Table = ({ initialGame, initialPlayer }: TableProps) => {
     axios
       .delete(`${BACKEND_URL}/players/`, {
         params: {
-          playerId: mainPlayer?.id,
           gameCode: game.code,
-          balance: balance,
         },
         headers: {
           Authorization: `Bearer ${token}`,
@@ -358,10 +373,7 @@ const Table = ({ initialGame, initialPlayer }: TableProps) => {
       <button
         className="button red"
         onClick={leavePlayer}
-        disabled={
-          game.currentPlayer?.playerId !== mainPlayer?.id && 
-          game.players.length > 1
-        }
+        disabled={!canLeaveGame}
       >
         Leave
       </button>

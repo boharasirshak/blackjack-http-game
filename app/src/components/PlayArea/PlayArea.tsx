@@ -10,6 +10,9 @@ const PlayArea = ({game, mainPlayer}: PlayAreaProps) => {
 
 
   function findWinner() {
+    if (game.players.length === 1) {
+      return null;
+    }
     let nonBustedPlayers = game.players.filter((player) => !isBusted(player.cards));
     let nonStayedPlayers = nonBustedPlayers.filter((player) => !player.stay);
 

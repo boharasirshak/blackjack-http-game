@@ -99,8 +99,6 @@ BEGIN
      -- Call findWinner to determine if there is a winner
     CALL findWinner(v_game_id, v_winner_id);
 
-    SELECT v_winner_id;
-
     -- Disallow deleting player if the game has started but no winner is declared
     IF v_game_player_limit = v_players_count AND v_winner_id IS NULL THEN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Game is running, cannot delete player unless there is a winner.';
@@ -113,7 +111,7 @@ BEGIN
     IF v_winner_id = v_user_id THEN
         UPDATE users SET balance = balance + (v_game_bet * v_game_player_limit) WHERE id = v_user_id;
     ELSE
-        UPDATE users SET balance = balance + p_balance WHERE id = v_user_id;
+        UPDATE users SET balance = balance - v_game_bet WHERE id = v_user_id;
     END IF;
 
     -- If the player was the last one in the game delete the game and the current player
@@ -189,7 +187,7 @@ BEGIN
     END IF;
 
     -- Update the stay state
-    UPDATE players SET stay = p_stay WHERE id = p_player_id;
+    UPDATE players SET stay = p_stay WHERE id = v_player_id;
 
     SELECT 'Player stay state updated successfully' AS message;
 END;

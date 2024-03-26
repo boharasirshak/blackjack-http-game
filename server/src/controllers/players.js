@@ -2,10 +2,10 @@ const axios = require("axios");
 const config = require("../config");
 
 async function deletePlayer(req, res, next) {
-  const { playerId, gameCode, balance } = req.query;
-  if (!playerId || !gameCode, !balance) {
+  const { gameCode } = req.query;
+  if (!gameCode) {
     return res.status(400).send({
-      message: "playerId, gameCode and balance required in the query!",
+      message: "gameCode and balance required in the query!",
     });
   }
 
@@ -31,10 +31,10 @@ async function deletePlayer(req, res, next) {
 }
 
 async function updatePlayerStay(req, res, next) {
-  let { gameCode, playerId, stay } = req.body || req.query;
-  if (!gameCode || !playerId  || stay === undefined || stay === null) {
+  let { gameCode, stay } = req.body || req.query;
+  if (!gameCode || stay === undefined || stay === null) {
     return res.status(400).send({
-      message: "playerId, gameCode and stay required in the body or query!",
+      message: "gameCode and stay required in the body or query!",
     });
   }
   stay = stay === true ? 1 : 0; // sql booleans are 1 or 0, so typecast to 1 or 0
@@ -45,7 +45,7 @@ async function updatePlayerStay(req, res, next) {
       pname: "updatePlayerStayState",
       p1: req.token,
       p2: gameCode,
-      p2: stay
+      p3: stay
     },
     timeout: 30000,
   });
