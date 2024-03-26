@@ -327,7 +327,6 @@ const Table = ({ initialGame, initialPlayer }: TableProps) => {
       .then(() => {})
       .catch((err) => {
         console.log(err);
-        alert("Error changing turn");
       });
   }
 

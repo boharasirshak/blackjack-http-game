@@ -13,6 +13,7 @@ interface GameData {
 const Games = () => {
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL ?? "http://sirshak.ddns.net";
   const token = localStorage.getItem("token");
+  const userID = parseInt(localStorage.getItem("id")!);
   const [games, setGames] = useState<GameData[]>([]);
   const [seconds, setSeconds] = useState(30);
   const [players, setPlayers] = useState(2);
@@ -68,6 +69,7 @@ const Games = () => {
           turnTime: seconds,
           bet: betAmount,
           playersLimit: players,
+          userId: userID
         },
         {
           headers: {

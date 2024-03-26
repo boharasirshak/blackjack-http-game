@@ -202,16 +202,12 @@ async function getAGame(req, res, next) {
 }
 
 async function joinGame(req, res, next) {
-  const gameCode = req.body.code || req.params.code || req.query.code;
-  if (!gameCode) {
+  const { gameCode, userId } = req.body || req.params.code || req.query.code;
+  if (!gameCode || userId === undefined || userId === null) {
     return res.status(400).send({
-      message: "gameCode is a required field!",
+      message: "gameCode, userID is a required field!",
     });
   }
-
-  const token = req.token; // from the middleware
-  const data = jwt.decode(token, { json: true });
-  const userId = data?.userId;
 
   if (!userId) {
     return res.status(401).send({
@@ -235,6 +231,8 @@ async function joinGame(req, res, next) {
     });
   }
 
+  console.log(JSON.stringify(response.data));
+
   if (
     !response.data.RESULTS[0]["v_player_id"] ||
     response.data.RESULTS[0]["v_player_id"].length === 0
@@ -252,16 +250,12 @@ async function joinGame(req, res, next) {
 }
 
 async function createGame(req, res, next) {
-  const { turnTime, bet, playersLimit } = req.body;
+  const { turnTime, bet, playersLimit, userId } = req.body;
   if (!turnTime || !bet || !playersLimit) {
     return res.status(400).send({
       message: "turnTime, bet and playersLimit are required!",
     });
   }
-
-  const token = req.token; // from the middleware
-  const data = jwt.decode(token, { json: true });
-  const userId = data?.userId;
 
   const gameCode = genRandomString(config.gameCodeLength);
 
