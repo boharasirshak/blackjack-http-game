@@ -26,10 +26,13 @@ async function login(req, res) {
     });
   }
 
+
   if (response.data.RESULTS[0].id) {
     return res.send({
       message: "Successfully logged in",
       token: response.data.RESULTS[0].token[0],
+      id: response.data.RESULTS[0].id[0],
+      username: response.data.RESULTS[0].username[0],
     });
   }
 }
@@ -67,46 +70,12 @@ async function signup(req, res) {
     });
   }
 
-  const id = response.data.RESULTS[0].id[0];
-  const sessionToken = jwt.sign(
-    {
-      userId: id,
-      email: email,
-    },
-    process.env.JWT_SECRET
-  );
-
-  try {
-    response = await axios.get(`http://sql.lavro.ru/call.php`, {
-      params: {
-        db: config.dbName,
-        pname: "updateToken",
-        p1: id,
-        p2: sessionToken,
-      },
-      timeout: 30000,
-    });
-
-    console.log(response.data);
-
-    if (
-      !response.data.RESULTS[0].token ||
-      !response.data.RESULTS[0].token.length === 0
-    ) {
-      return res.status(500).send({
-        message: "Error updating token",
-      });
-    }
-
-    return res.status(201).send({
-      message: "Successfully signed up",
-      token: sessionToken,
-    });
-  } catch {
-    return res.status(500).send({
-      message: "Error updating token",
-    });
-  }
+  return res.status(201).send({
+    message: "Successfully signed up",
+    token: response.data.RESULTS[0].token[0],
+    id: response.data.RESULTS[0].id[0],
+    username: response.data.RESULTS[0].username[0],
+  });
 }
 
 module.exports.login = login;

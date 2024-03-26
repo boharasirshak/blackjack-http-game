@@ -17,6 +17,9 @@ const Login = () => {
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL ?? "http://sirshak.ddns.net";
   
   const [token, setToken] = useLocalStorageString("token");
+  const [, setUserId] = useLocalStorageString("id");
+  const [, setUsername] = useLocalStorageString("username");
+
   if (token) {
     window.location.href = "/dashboard";
   }
@@ -43,7 +46,9 @@ const Login = () => {
       if (resp.status !== 200) {
         return alert(resp.data.message);
       }
-	  setToken(resp.data.token);
+	    setToken(resp.data.token);
+      setUserId(resp.data.id);
+      setUsername(resp.data.username);
       window.location.href = "/dashboard";
     } catch (error: any) {
       alert(error);

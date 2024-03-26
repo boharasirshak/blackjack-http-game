@@ -1,8 +1,7 @@
 import axios from "axios";
-import { jwtDecode } from "jwt-decode";
 import { useEffect, useState } from "react";
 import { useBalance } from "../../context/Balance";
-import { ICurrentPlayer, IGame, IPlayer, IPlayerCards, ITokenData } from "../../types";
+import { ICurrentPlayer, IGame, IPlayer, IPlayerCards } from "../../types";
 import PlayArea from "../PlayArea";
 import "./Table.css";
 
@@ -31,7 +30,7 @@ const Table = ({ initialGame, initialPlayer }: TableProps) => {
   const [timer, setTimer] = useState<number>(0);
 
   const token = localStorage.getItem("token");
-  const decode = jwtDecode<ITokenData>(token!);
+  const userId = parseInt(localStorage.getItem("id")!);
 
   function startGameIfPossible(gameData: IGame) {
     if (running) return;
@@ -114,7 +113,7 @@ const Table = ({ initialGame, initialPlayer }: TableProps) => {
         }
 
         for (const player of res.data.players) {
-          if (player.userId === decode.userId) {
+          if (player.userId === userId) {
             setMainPlayer(player);
 
             if (!_istimerSet) {
@@ -126,7 +125,7 @@ const Table = ({ initialGame, initialPlayer }: TableProps) => {
             // you can add cards if you have the current turn
             if (
               res.data.currentPlayer &&
-              res.data.currentPlayer.userId === decode.userId
+              res.data.currentPlayer.userId === userId
             ) {
               setCurrentTurn(true);
               setCanAddCard(true);
@@ -157,7 +156,7 @@ const Table = ({ initialGame, initialPlayer }: TableProps) => {
               !isBusted(player.cards) &&
               winner === null &&
               res.data.currentPlayer &&
-              res.data.currentPlayer.userId === decode.userId
+              res.data.currentPlayer.userId === userId
             ) {
               setCanClickStay(true);
             }
@@ -189,7 +188,7 @@ const Table = ({ initialGame, initialPlayer }: TableProps) => {
           }
 
           // add the balance to the user
-          if (winner && winner.userId === decode.userId) {
+          if (winner && winner.userId === userId) {
             setBalance(balance + game.bet);
           }
         }

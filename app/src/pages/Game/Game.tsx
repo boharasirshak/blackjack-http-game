@@ -1,5 +1,4 @@
 import axios, { AxiosError } from "axios";
-import { jwtDecode } from "jwt-decode";
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 
@@ -12,7 +11,8 @@ import "./Game.css";
 const Game = () => {
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL ?? "http://sirshak.ddns.net";
   const token = localStorage.getItem("token");
-  const decode = jwtDecode<IPlayer>(token!);
+  const userId = parseInt(localStorage.getItem("id")!);
+  // const decode = jwtDecode<IPlayer>(token!);
   const [game, setGame] = useState<IGame>();
   const [player, setPlayer] = useState<IPlayer>();
 
@@ -37,7 +37,7 @@ const Game = () => {
         setGame(res.data);
 
         const exists = res.data.players.find(
-          (p) => p.userId === decode.userId
+          (p) => p.userId === userId
         );
 
         if (exists) {
@@ -56,7 +56,7 @@ const Game = () => {
           await axios.post<IPlayer>(
             `${BACKEND_URL}/games/${code}`,
             {
-              userId: decode.userId,
+              userId: userId,
               gameCode: code,
             },
             {
