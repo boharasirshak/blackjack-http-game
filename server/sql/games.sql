@@ -12,12 +12,64 @@ CREATE PROCEDURE getGameData(IN p_game_code VARCHAR(16))
 COMMENT 'Retrieve details of a game, its players and their cards using its unique game code, 
         p_game_code: The game code identifying the game.'
 BEGIN
-    DECLARE v_game_exists INT DEFAULT 0;
+    DECLARE v_game_id INT;
+    DECLARE v_current_player_id INT;
+    DECLARE v_current_player_start_time BIGINT;
+    DECLARE v_turn_time INT;
+    DECLARE v_now BIGINT;
+    DECLARE v_winner_id INT DEFAULT NULL;
 
-    -- Check if the game exists
-    SELECT COUNT(*) INTO v_game_exists FROM games WHERE code = p_game_code;
-    IF v_game_exists = 0 THEN 
+    -- Get the current UNIX timestamp
+    SET v_now = UNIX_TIMESTAMP();
+
+    -- Check if the game exists and get its ID and turn time
+    SELECT id, turn_time INTO v_game_id, v_turn_time FROM games WHERE code = p_game_code LIMIT 1;
+    IF v_game_id IS NULL THEN 
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Game not found';
+    END IF;
+
+    CALL findWinner(v_game_id, v_winner_id);
+
+    -- Only proceed with turn and stay logic if no winner is found
+    IF v_winner_id IS NULL THEN
+        -- Check if there's a current player for the game
+        SELECT 
+            cp.player_id, 
+            cp.start_time 
+        INTO 
+            v_current_player_id, 
+            v_current_player_start_time
+        FROM 
+            current_players cp
+            INNER JOIN players p ON cp.player_id = p.id
+            INNER JOIN games g ON p.game_id = g.id
+        WHERE 
+            g.id = v_game_id
+        LIMIT 1;
+
+        -- If there's a current player and their turn time has expired
+        IF v_current_player_id IS NOT NULL AND TIMESTAMPDIFF(
+            SECOND, FROM_UNIXTIME(v_current_player_start_time), CURRENT_TIMESTAMP()
+        ) > v_turn_time THEN
+            -- Update the current player's stay status to TRUE
+            UPDATE players SET stay = TRUE WHERE id = v_current_player_id;
+
+            -- Attempt to change the turn to the next player, ignoring errors
+            BEGIN
+                DECLARE CONTINUE HANDLER FOR SQLEXCEPTION BEGIN END;
+                CALL changePlayerTurn(
+                    p_game_code, 
+                    (
+                        SELECT token FROM tokens WHERE 
+                        user_id = (
+                            SELECT user_id FROM players 
+                            WHERE id = v_current_player_id 
+                            LIMIT 1
+                        ) LIMIT 1
+                    )
+                );
+            END;
+        END IF;
     END IF;
     
     -- Select game details

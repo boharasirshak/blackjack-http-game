@@ -79,7 +79,8 @@ async function getAGame(req, res, next) {
 
   let game = {
     players: [],
-    currentPlayer: null
+    currentPlayer: null,
+    winner_id: null,
   };
 
   try {
@@ -105,8 +106,8 @@ async function getAGame(req, res, next) {
   }
 
   if (
-    !response.data.RESULTS[0].id ||
-    response.data.RESULTS[0].id.length === 0
+    !response.data.RESULTS[1].id ||
+    response.data.RESULTS[1].id.length === 0
   ) {
     return res.status(404).send({
       message: "Game not found!",
@@ -114,15 +115,16 @@ async function getAGame(req, res, next) {
   }
 
   game = {
-    id: response.data.RESULTS[0].id[0],
-    code: response.data.RESULTS[0].code[0],
-    bet: response.data.RESULTS[0].bet[0],
-    turnTime: response.data.RESULTS[0].turn_time[0],
-    playersLimit: response.data.RESULTS[0].players_limit[0],
-    players: []
+    id: response.data.RESULTS[1].id[0],
+    code: response.data.RESULTS[1].code[0],
+    bet: response.data.RESULTS[1].bet[0],
+    turnTime: response.data.RESULTS[1].turn_time[0],
+    playersLimit: response.data.RESULTS[1].players_limit[0],
+    players: [],
+    winner_id: response.data.RESULTS[0].winner_id[0],
   }
 
-  const playerData = response.data.RESULTS[1];
+  const playerData = response.data.RESULTS[2];
   for (var i = 0; i < playerData.id.length; i++) {
     game.players.push({
       id: playerData.id[i],
@@ -135,7 +137,7 @@ async function getAGame(req, res, next) {
     });
   }
 
-  const cardsData = response.data.RESULTS[2];
+  const cardsData = response.data.RESULTS[3];
   for (var i = 0; i < cardsData.player_id.length; i++) {
     for (let j = 0; j < game.players.length; j++) {
       if (game.players[j].id === cardsData.player_id[i]) {
@@ -151,7 +153,7 @@ async function getAGame(req, res, next) {
   }
 
 
-  const currentPlayerData = response.data.RESULTS[3];
+  const currentPlayerData = response.data.RESULTS[4];
   if (currentPlayerData.current_player_id.length > 0) {
     game.currentPlayer = {
       id: currentPlayerData.current_player_id[0],
@@ -160,41 +162,6 @@ async function getAGame(req, res, next) {
       playerId: currentPlayerData.player_id[0],
       userId: currentPlayerData.user_id[0],
       username: playerData.username[i],
-    }
-  }
-
-  if (game.currentPlayer &&  (Math.round(Date.now() / 1000) - game.currentPlayer.startTime) > game.turnTime) {
-    if (playerId && playerSequenceNumber) {
-      if (game.currentPlayer.playerId == playerId && game.currentPlayer.sequenceNumber == playerSequenceNumber) {
-        axios.get(`http://sql.lavro.ru/call.php`, {
-          params: {
-            db: config.dbName,
-            pname: "changePlayerTurn",
-            p1: gameCode,
-            p2: req.token
-          },
-          timeout: 30000,
-        })
-        .then((response) => {
-          console.log("Player turn changed!")
-        })
-        .catch((error) => {});
-
-        axios.get(`http://sql.lavro.ru/call.php`, {
-          params: {
-            db: config.dbName,
-            pname: "updatePlayerStayState",
-            p1: req.token,
-            p2: gameCode,
-            p3: "1",
-          },
-          timeout: 30000,
-        })
-        .then((response) => {
-          console.log("Player stay changed!")
-        })
-        .catch((error) => {});
-      }
     }
   }
 

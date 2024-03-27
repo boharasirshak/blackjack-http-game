@@ -218,6 +218,10 @@ BEGIN
     DECLARE v_all_stayed_or_busted INT DEFAULT 0;
     DECLARE v_has_current_turn INT DEFAULT 0;
 
+    IF p_token IS NULL OR p_token = '' THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Token cannot be empty';
+    END IF;
+
     -- Check if the token exists
     SELECT user_id INTO v_user_id FROM tokens WHERE token = p_token;
     IF v_user_id IS NULL THEN 
@@ -290,7 +294,6 @@ BEGIN
         -- Calculate or retrieve the player's score.
         CALL getTotalScore(v_next_player_id, @player_score);
         SET v_score = @player_score; -- Retrieve the score from the session variable
-        SELECT v_score;
         
         -- Check if the player is busted (>21). If so, skip them.
         IF v_score > 21 THEN
