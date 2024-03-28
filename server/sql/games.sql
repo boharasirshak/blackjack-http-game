@@ -18,6 +18,8 @@ BEGIN
     DECLARE v_turn_time INT;
     DECLARE v_now BIGINT;
     DECLARE v_winner_id INT DEFAULT NULL;
+    DECLARE v_winner_username VARCHAR(255);
+    DECLARE is_tie BOOLEAN DEFAULT FALSE;
 
     -- Get the current UNIX timestamp
     SET v_now = UNIX_TIMESTAMP();
@@ -28,11 +30,11 @@ BEGIN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Game not found';
     END IF;
 
+    CALL checkTie(v_game_id, is_tie);
     CALL findWinner(v_game_id, v_winner_id);
 
-    -- Only proceed with turn and stay logic if no winner is found
-    IF v_winner_id IS NULL THEN
-        -- Check if there's a current player for the game
+    -- IF there is not a tie and not a winner, check if the current player's turn has expired
+    IF is_tie = FALSE AND v_winner_id IS NULL THEN
         SELECT 
             cp.player_id, 
             cp.start_time 
@@ -53,7 +55,6 @@ BEGIN
         ) > v_turn_time THEN
             -- Update the current player's stay status to TRUE
             UPDATE players SET stay = TRUE WHERE id = v_current_player_id;
-
             -- Attempt to change the turn to the next player, ignoring errors
             BEGIN
                 DECLARE CONTINUE HANDLER FOR SQLEXCEPTION BEGIN END;
@@ -106,33 +107,66 @@ BEGIN
         p.id AS player_id,
         p.sequence_number,
         p.user_id,
-        u.username
+        u.username,
+        v_turn_time - TIMESTAMPDIFF(
+            SECOND, FROM_UNIXTIME(cp.start_time), CURRENT_TIMESTAMP()
+        ) AS countdown
     FROM current_players cp
     INNER JOIN players p ON cp.player_id = p.id
     INNER JOIN games g ON p.game_id = g.id
     INNER JOIN users u ON p.user_id = u.id 
     WHERE g.code = p_game_code;
+
+    IF is_tie = TRUE THEN
+        SELECT 'Game is draw' AS outcome;
+    ELSEIF v_winner_id IS NOT NULL THEN
+        -- get the user's username from the winner_id which is player.id
+        SELECT username INTO v_winner_username FROM users 
+        INNER JOIN players ON users.id = players.user_id
+        WHERE players.id = v_winner_id; 
+
+        IF v_winner_username IS NOT NULL THEN
+            SELECT CONCAT_WS(" ", "Player", v_winner_username, "is winner") AS outcome;
+        ELSE
+            SELECT CONCAT_WS(" ", "Player", v_winner_id, "is winner") AS outcome;
+        END IF;
+    ELSE
+        SELECT 'Game is still in progress' AS outcome;
+    END IF;
 END;
 
 DROP PROCEDURE IF EXISTS createGame;
 CREATE PROCEDURE createGame(
     IN p_game_code VARCHAR(20), 
-    IN p_user_id INT,
+    IN p_token VARCHAR(255),
     IN p_turn_time INT,
     IN p_bet INT,
     IN p_players_limit INT
 )
 COMMENT 'Creates a new game with specified parameters and automatically adds the creator as a player, 
         p_game_code: Unique game code, 
-        p_user_id: User ID of the game creator, 
+        p_token: The token of the user, 
         p_turn_time: Time allocated for each turn, 
         p_bet: Initial bet amount,
         p_players_limit: Maximum number of players allowed in the game.'
 BEGIN
+    DECLARE v_user_id INT;
     DECLARE v_user_exists INT DEFAULT 0;
     DECLARE v_game_exists INT DEFAULT 0;
     DECLARE v_game_id INT;
     DECLARE v_player_id INT;
+
+    -- Check if the token exists
+    SELECT user_id INTO v_user_id FROM tokens WHERE token = p_token;
+    IF v_user_id IS NULL THEN 
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'User not found';
+    END IF;
+
+    -- Check if the user_id exists in the users table
+    SELECT COUNT(*) INTO v_user_exists FROM users WHERE id = v_user_id;
+    IF v_user_exists = 0 THEN 
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'User not found';
+    END IF;
 
     -- Input validation
     IF p_turn_time < 10 OR p_turn_time > 120 THEN 
@@ -145,12 +179,6 @@ BEGIN
 
     IF p_players_limit < 2 OR p_players_limit > 4 THEN 
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Players limit must be greater between 4 and 2';
-    END IF;
-    
-    -- Check if the user exists
-    SELECT COUNT(*) INTO v_user_exists FROM users WHERE id = p_user_id;
-    IF v_user_exists = 0 THEN 
-        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'User not found';
     END IF;
 
     -- Check if the game code is unique
@@ -167,7 +195,7 @@ BEGIN
     SELECT LAST_INSERT_ID() INTO v_game_id;
 
     -- Create the player immediately
-    CALL createPlayer(v_game_id, p_user_id, v_player_id);
+    CALL createPlayer(v_game_id, v_user_id, v_player_id);
 
     SELECT v_game_id, v_player_id;
 END;
@@ -238,9 +266,10 @@ BEGIN
     DECLARE v_first_player_id INT;
     DECLARE v_first_sequence_number INT;
     DECLARE v_players_count INT;
+    DECLARE v_players_limit INT;
     
     -- Get the game ID
-    SELECT id INTO v_game_id FROM games WHERE code = p_game_code;
+    SELECT id, players_limit INTO v_game_id, v_players_limit FROM games WHERE code = p_game_code;
     IF v_game_id IS NULL THEN 
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Game not found';
     END IF;
@@ -249,6 +278,11 @@ BEGIN
     SELECT COUNT(*) INTO v_players_count FROM players WHERE game_id = v_game_id;
     IF v_players_count = 0 THEN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'No players in the game';
+    END IF;
+
+    -- Check if the players limit has been reached
+    IF v_players_count < v_players_limit THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Players count not reached to start the game';
     END IF;
     
     -- Get the first player
@@ -287,6 +321,7 @@ BEGIN
     DECLARE non_busted_players INT DEFAULT 0;
     DECLARE non_stayed_players INT DEFAULT 0;
     DECLARE total_players INT DEFAULT 0;
+    DECLARE v_tmp_winner_id INT;
 
     DECLARE cur CURSOR FOR
         SELECT players.id, players.stay
@@ -304,43 +339,108 @@ BEGIN
         END IF;
 
         CALL getTotalScore(player_id, total_score);
-        IF @total_score > 21 THEN
+        
+        IF @total_score = 21 THEN
+            SET winner_id = player_id;
+            LEAVE find_non_busted;
+        ELSEIF @total_score > 21 THEN
             SET busted_players = busted_players + 1;
         ELSE
             SET non_busted_players = non_busted_players + 1;
             IF NOT player_stay THEN
                 SET non_stayed_players = non_stayed_players + 1;
             END IF;
-            -- Keep track of the highest score and winner ID among non-busted players
             IF @total_score > highest_score THEN
                 SET highest_score = @total_score;
                 SET winner_id = player_id;
             END IF;
         END IF;
         SET total_players = total_players + 1;
-    END LOOP;
+    END LOOP find_non_busted;
 
     CLOSE cur;
 
-    -- TODO: debug this.
-
-    -- Apply game logic to determine the winner
-    IF non_busted_players = 0 THEN
-        -- All players are busted
-        SET winner_id = NULL;
-        SELECT winner_id;
-    ELSEIF non_busted_players = 1 AND total_players > 1 THEN
-        -- Only one non-busted player
-        -- winner_id is already set
-        SELECT winner_id;
-    ELSEIF non_stayed_players = 0 THEN
-        -- All non-busted players have stayed, winner_id is already the highest scorer
-        -- No action needed as winner_id is already set
-        SELECT winner_id;
+    -- After the loop, check if a winner with 21 was found and returned; otherwise, continue with logic
+    IF winner_id IS NOT NULL AND total_score = 21 THEN
+        SET v_tmp_winner_id = winner_id;
     ELSE
-        -- If there's no clear winner based on the above conditions
-        SET winner_id = NULL;
-        SELECT winner_id;
+        -- Apply game logic to determine the winner
+        IF non_busted_players = 0 THEN
+            SET winner_id = NULL;
+        ELSEIF non_busted_players = 1 AND total_players > 1 THEN
+            SET v_tmp_winner_id = winner_id;
+        ELSEIF non_stayed_players = 0 AND highest_score > 0 THEN
+            SET v_tmp_winner_id = winner_id;
+        ELSE
+            SET winner_id = NULL;
+        END IF;
     END IF;
+END;
 
+
+DROP PROCEDURE IF EXISTS checkTie;
+CREATE PROCEDURE checkTie(IN game_id INT, OUT tie BOOLEAN)
+COMMENT 'Counts the winners to determine a tie based on the highest score of players,
+         game_id: The ID of the game, 
+         OUT tie: Returns TRUE if there is a tie, FALSE otherwise.'
+SQL SECURITY INVOKER
+BEGIN
+    DECLARE player_id INT;
+    DECLARE player_stay BOOLEAN;
+    DECLARE total_score INT;
+    DECLARE highest_score INT DEFAULT 0;
+    DECLARE player_count_with_highest_score INT DEFAULT 0;
+    DECLARE total_players INT DEFAULT 0;
+    DECLARE stayed_players INT DEFAULT 0;
+
+    DECLARE cur CURSOR FOR
+        SELECT players.id, players.stay
+        FROM players
+        WHERE players.game_id = game_id;
+        
+    DECLARE CONTINUE HANDLER FOR NOT FOUND SET player_id = NULL;
+
+    OPEN cur;
+
+    check_loop: LOOP
+        FETCH cur INTO player_id, player_stay;
+        IF player_id IS NULL THEN
+            LEAVE check_loop;
+        END IF;
+        
+        CALL getTotalScore(player_id, total_score);
+        SET total_score = @total_score;
+
+        IF total_score = 21 THEN
+            SET tie = FALSE;
+            LEAVE check_loop;
+        END IF;
+        
+        IF total_score < 21 THEN
+            IF total_score > highest_score THEN
+                SET highest_score = total_score;
+                SET player_count_with_highest_score = 1;
+            ELSEIF total_score = highest_score THEN
+                SET player_count_with_highest_score = player_count_with_highest_score + 1;
+            END IF;
+        END IF;
+
+        IF player_stay THEN
+            SET stayed_players = stayed_players + 1;
+        END IF;
+
+        SET total_players = total_players + 1;
+    END LOOP check_loop;
+
+    CLOSE cur;
+
+    IF total_score = 21 THEN
+        SET tie = FALSE;
+    ELSE
+        IF stayed_players = total_players AND player_count_with_highest_score > 1 THEN
+            SET tie = TRUE;
+        ELSE
+            SET tie = FALSE;
+        END IF;
+    END IF;
 END;

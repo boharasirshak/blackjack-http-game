@@ -10,9 +10,20 @@ const PlayArea = ({game, mainPlayer}: PlayAreaProps) => {
 
 
   function findWinner() {
-    if (game.players.length === 1) {
+    if (game.players.length === 1){
+      if (getTotalScore(game.players[0].cards) === 21) {
+        return game.players[0];
+      }
       return null;
     }
+
+    // iterate each player and find the blackjack winner
+    for (const player of game.players) {
+      if (getTotalScore(player.cards) === 21) {
+        return player;
+      }
+    }
+
     let nonBustedPlayers = game.players.filter((player) => !isBusted(player.cards));
     let nonStayedPlayers = nonBustedPlayers.filter((player) => !player.stay);
 

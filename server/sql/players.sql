@@ -17,6 +17,7 @@ BEGIN
     DECLARE v_game_exists INT DEFAULT 0;
     DECLARE v_player_id INT;
     DECLARE v_sequence_number INT;
+    DECLARE v_game_bet INT;
 
     -- Generate a random number between 1 and INT_MAX (2147483647 - 2) to be stored as sequence
     SET v_sequence_number = FLOOR(RAND() * 2147483645) + 1;
@@ -28,7 +29,7 @@ BEGIN
     END IF;
 
     -- Check if the game exists
-    SELECT COUNT(*) INTO v_game_exists FROM games WHERE id = p_game_id;
+    SELECT COUNT(*), bet INTO v_game_exists, v_game_bet FROM games WHERE id = p_game_id;
     IF v_game_exists = 0 THEN 
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Game not found';
     END IF;
@@ -38,6 +39,9 @@ BEGIN
     VALUES (p_game_id, p_user_id, v_sequence_number);
 
     SET o_player_id = LAST_INSERT_ID();
+
+    -- Deduce the user's balance by the game's bet
+    UPDATE users SET balance = balance - v_game_bet WHERE id = p_user_id;
 
     SELECT 'Player created successfully' AS message;
 END;

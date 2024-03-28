@@ -105,5 +105,4 @@ BEGIN
     END WHILE;
 
     SET @total_score = total_score;
-    SET total_score = @total_score;
 END;

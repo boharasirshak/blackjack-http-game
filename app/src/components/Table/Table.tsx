@@ -426,6 +426,13 @@ function isBusted(cards: IPlayerCards[]) {
 }
 
 function findWinnerDelayed(game: IGame) {
+  // iterate each player and find the blackjack winner
+  for (const player of game.players) {
+    if (getTotalScore(player.cards) === 21) {
+      return player;
+    }
+  }
+  
   let nonBustedPlayers = game.players.filter(
     (player) => !isBusted(player.cards)
   );

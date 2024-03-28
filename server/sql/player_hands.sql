@@ -13,10 +13,11 @@ BEGIN
     DECLARE v_player_id INT;
     DECLARE v_game_id INT;
     DECLARE v_player_exists INT DEFAULT 0;
+    DECLARE v_player_stayed BOOLEAN;
     DECLARE v_player_in_game INT DEFAULT 0;
     DECLARE v_card_id INT;
     DECLARE v_current_turn_player_id INT;
-    DECLARE v_total_score INT;
+    DECLARE total_score INT;
 
     -- Check if token exists
     SELECT user_id INTO v_user_id FROM tokens WHERE token = p_token LIMIT 1;
@@ -43,9 +44,14 @@ BEGIN
     END IF;
 
     -- Get the player ID
-    SELECT id INTO v_player_id FROM players WHERE user_id = v_user_id AND game_id = v_game_id LIMIT 1;
+    SELECT id, stay INTO v_player_id, v_player_stayed FROM players WHERE user_id = v_user_id AND game_id = v_game_id LIMIT 1;
     IF v_player_id IS NULL THEN 
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Player not found';
+    END IF;
+
+    -- Check if the player has stayed
+    IF v_player_stayed = TRUE OR v_player_stayed = 1 THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Player has stayed and cannot add more cards';
     END IF;
 
     -- Check if the player is in the game
@@ -73,24 +79,21 @@ BEGIN
     -- TODO: debug this
 
     -- Calculate the player's total score
-    CALL getTotalScore(v_player_id, @v_total_score);
-    SET v_total_score = @v_total_score;
-
-    SELECT v_total_score;
+    CALL getTotalScore(v_player_id, total_score);
 
     -- Check if the player is busted
-    IF v_total_score > 21 THEN
+    IF @total_score > 21 THEN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Player is busted and cannot add more cards';
     END IF;
 
-    IF v_total_score = 21 THEN
+    IF @total_score = 21 THEN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Player has reached 21 and cannot add more cards';
     END IF;
 
     -- Get a random card which is not in players hands
     SELECT id INTO v_card_id FROM cards WHERE id NOT IN (SELECT card_id FROM player_hands) ORDER BY RAND() LIMIT 1;
 
-     -- Check if a card was available
+    -- Check if a card was available
     IF v_card_id IS NULL THEN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'No more cards available';
     ELSE
