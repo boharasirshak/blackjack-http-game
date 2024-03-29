@@ -18,7 +18,6 @@ const Table = ({ initialGame, initialPlayer }: TableProps) => {
   );
   const [currentPlayer, setCurrentPlayer] = useState<ICurrentPlayer>();
   const [game, setGame] = useState<IGame>(initialGame);
-  const [running, setRunning] = useState<boolean>(false);
   const { balance, setBalance } = useBalance();
   
   const [currentTurn, setCurrentTurn] = useState<boolean>(false);
@@ -31,35 +30,6 @@ const Table = ({ initialGame, initialPlayer }: TableProps) => {
 
   const token = localStorage.getItem("token");
   const userId = parseInt(localStorage.getItem("id")!);
-
-  function startGameIfPossible(gameData: IGame) {
-    if (running) return;
-
-    if (gameData.players.length === gameData.playersLimit) {
-      setRunning(true);
-      axios
-      .put(
-        `${BACKEND_URL}/games/start`,
-        {
-          gameCode: game.code,
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "ngrok-skip-browser-warning": "true",
-          },
-        }
-      )
-      .then(() => {})
-      .catch((_) => {})
-      .finally(() => {
-        setRunning(true);
-      });
-
-    } else {
-      setRunning(false);
-    }
-  }
 
   useEffect(() => {
     // initial balance
@@ -106,7 +76,6 @@ const Table = ({ initialGame, initialPlayer }: TableProps) => {
         setGame(res.data);
 
         const winner = findWinner();
-        startGameIfPossible(res.data);
 
         if (res.data.currentPlayer) {
           setCurrentPlayer(res.data.currentPlayer);
@@ -204,7 +173,7 @@ const Table = ({ initialGame, initialPlayer }: TableProps) => {
     return () => {
       clearInterval(intervalId);
     };
-  }, [running]);
+  }, []);
 
   useEffect(() => {
     if (balance === null || balance === undefined) return;

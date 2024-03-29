@@ -20,15 +20,35 @@ BEGIN
     DECLARE v_winner_id INT DEFAULT NULL;
     DECLARE v_winner_username VARCHAR(255);
     DECLARE is_tie BOOLEAN DEFAULT FALSE;
+    DECLARE v_players_count INT DEFAULT 0;
+    DECLARE v_players_limit INT;
+    DECLARE v_current_players_count INT DEFAULT 0;
+
+    DECLARE CONTINUE HANDLER FOR SQLEXCEPTION BEGIN
+    END;
 
     -- Get the current UNIX timestamp
     SET v_now = UNIX_TIMESTAMP();
 
     -- Check if the game exists and get its ID and turn time
-    SELECT id, turn_time INTO v_game_id, v_turn_time FROM games WHERE code = p_game_code LIMIT 1;
+    SELECT id, turn_time, players_limit INTO v_game_id, v_turn_time, v_players_limit FROM games WHERE code = p_game_code LIMIT 1;
     IF v_game_id IS NULL THEN 
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Game not found';
     END IF;
+
+    SELECT COUNT(*) INTO v_players_count FROM players WHERE game_id = v_game_id;
+
+    -- Check if the number of players matches the game's player limit
+    IF v_players_count = v_players_limit THEN
+        SELECT COUNT(*) INTO v_current_players_count FROM current_players 
+        WHERE player_id IN (SELECT id FROM players WHERE game_id = v_game_id);
+        
+        -- Check if the current player already exists to avoid resetting the game
+        IF v_current_players_count = 0 THEN
+            CALL startGame(p_game_code);
+        END IF;
+    END IF;
+
 
     CALL checkTie(v_game_id, is_tie);
     CALL findWinner(v_game_id, v_winner_id);
@@ -108,8 +128,11 @@ BEGIN
         p.sequence_number,
         p.user_id,
         u.username,
-        v_turn_time - TIMESTAMPDIFF(
-            SECOND, FROM_UNIXTIME(cp.start_time), CURRENT_TIMESTAMP()
+        GREATEST(
+            v_turn_time - TIMESTAMPDIFF(
+                SECOND, FROM_UNIXTIME(cp.start_time), CURRENT_TIMESTAMP()
+            ), 
+            0
         ) AS countdown
     FROM current_players cp
     INNER JOIN players p ON cp.player_id = p.id
@@ -203,21 +226,28 @@ END;
 DROP PROCEDURE IF EXISTS joinGame;
 CREATE PROCEDURE joinGame(
     IN p_game_code VARCHAR(20), 
-    IN p_user_id INT
+    IN p_token VARCHAR(255)
 )
 COMMENT 'Adds a player to a game using the game code and user ID, 
         p_game_code: Unique game code, 
-        p_user_id: User ID of the player.'
+        p_token: The token of the user'
 BEGIN
+    DECLARE v_user_id INT;
     DECLARE v_user_exists INT DEFAULT 0;
     DECLARE v_game_exists INT DEFAULT 0;
     DECLARE v_player_id INT;
     DECLARE v_game_id INT;
     DECLARE v_players_count INT;
     DECLARE v_user_already_joined INT DEFAULT 0;
-    
-    -- Check if the user exists
-    SELECT COUNT(*) INTO v_user_exists FROM users WHERE id = p_user_id;
+
+    -- Check if the token exists
+    SELECT user_id INTO v_user_id FROM tokens WHERE token = p_token;
+    IF v_user_id IS NULL THEN 
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Token not found';
+    END IF;
+
+    -- Check if the user_id exists in the users table
+    SELECT COUNT(*) INTO v_user_exists FROM users WHERE id = v_user_id;
     IF v_user_exists = 0 THEN 
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'User not found';
     END IF;
