@@ -270,7 +270,7 @@ BEGIN
     -- Check if the user has already joined the game
     SELECT COUNT(*) INTO v_user_already_joined FROM players p
         INNER JOIN games g ON p.game_id = g.id
-    WHERE g.code = p_game_code AND p.user_id = p_user_id;
+    WHERE g.code = p_game_code AND p.user_id = v_user_id;
 
     IF v_user_already_joined > 0 THEN 
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'User has already joined the game';
@@ -280,7 +280,7 @@ BEGIN
     SELECT id INTO v_game_id FROM games WHERE code = p_game_code;
     
     -- Create the player
-    CALL createPlayer(v_game_id, p_user_id, v_player_id);
+    CALL createPlayer(v_game_id, v_user_id, v_player_id);
     
     SELECT v_player_id;
 END;
@@ -291,6 +291,7 @@ CREATE PROCEDURE startGame(
 )
 COMMENT 'Starts the game by changing the turn to the first player, 
         p_game_code: Unique game code.'
+SQL SECURITY INVOKER
 BEGIN
     DECLARE v_game_id INT;
     DECLARE v_first_player_id INT;
